@@ -1,48 +1,40 @@
-// /api/update.js - VERSION FIXED FOR DEBUGGING
+// /api/update.js - FIXED VERSION
 if (!global.bbData) {
     global.bbData = { symbols: {}, charts: {}, positions: {} };
 }
 
 export default function handler(req, res) {
-    // Set CORS headers FIRST
+    // Set CORS headers - HARUS DI AWAL
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
     res.setHeader('Content-Type', 'application/json');
     
-    // Handle OPTIONS for CORS preflight
+    // Handle OPTIONS (CORS preflight)
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
     
-    // DEBUG: Log semua request yang masuk
-    console.log('=== REQUEST DEBUG ===');
+    console.log('=== INCOMING REQUEST ===');
     console.log('Method:', req.method);
     console.log('URL:', req.url);
-    console.log('Headers:', JSON.stringify(req.headers));
-    console.log('Query:', req.query);
-    console.log('Body type:', typeof req.body);
-    console.log('Body length:', req.body ? req.body.length : 0);
-    console.log('Body preview:', req.body ? req.body.toString().substring(0, 200) : 'null');
-    console.log('====================');
     
-    // Jika bukan POST, tampilkan error yang jelas
-    if (req.method !== 'POST') {
-        console.log(`❌ WRONG METHOD: ${req.method} but expected POST`);
-        return res.status(405).json({ 
-            status: 'error', 
-            message: `Method ${req.method} not allowed. Use POST.`,
-            your_request: {
-                method: req.method,
-                url: req.url,
-                headers: req.headers
+    // DEBUG: Accept GET for testing from browser
+    if (req.method === 'GET') {
+        console.log('📱 GET request from browser detected');
+        
+        return res.status(200).json({
+            status: 'info',
+            message: 'EA Dashboard API is running',
+            current_status: {
+                total_symbols: Object.keys(global.bbData.symbols).length,
+                symbols: Object.keys(global.bbData.symbols),
+                last_update: global.bbData.symbols[Object.keys(global.bbData.symbols)[0]]?.server_time || 'none'
             },
-            required: {
+            instructions_for_ea: {
                 method: 'POST',
-                url: '/api/update',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                url: 'https://cl-ten-woad.vercel.app/api/update',
+                headers: 'Content-Type: application/json',
                 body_example: {
                     symbol: 'EURUSD',
                     bid: 1.08542,
@@ -50,139 +42,102 @@ export default function handler(req, res) {
                     balance: 9950,
                     daily_pnl: 50
                 }
-            }
+            },
+            test_with_curl: 'curl -X POST https://cl-ten-woad.vercel.app/api/update -H "Content-Type: application/json" -d \'{"symbol":"TEST","bid":1.0,"equity":1000}\''
         });
     }
     
-    try {
-        let data;
-        let rawBody = '';
-        
-        // Get raw body untuk debugging
-        if (req.body) {
-            if (typeof req.body === 'string') {
-                rawBody = req.body;
-            } else if (Buffer.isBuffer(req.body)) {
-                rawBody = req.body.toString();
-            } else if (typeof req.body === 'object') {
-                rawBody = JSON.stringify(req.body);
-            }
-        }
-        
-        console.log('📥 Raw body received:', rawBody.substring(0, 500));
-        
-        // Parse JSON
-        if (rawBody.trim() === '') {
-            console.log('❌ Empty body received');
-            return res.status(400).json({ 
-                status: 'error', 
-                message: 'Empty request body',
-                hint: 'EA harus mengirim JSON data, contoh: {"symbol":"EURUSD"}'
-            });
-        }
+    // Handle POST request (from EA)
+    if (req.method === 'POST') {
+        console.log('📨 POST request received (from EA)');
         
         try {
-            data = JSON.parse(rawBody);
-        } catch (parseError) {
-            console.log('❌ JSON Parse Error:', parseError.message);
-            console.log('❌ Problematic JSON:', rawBody);
+            let data;
+            let rawBody = '';
             
-            // Coba cari masalah di JSON
-            const lines = rawBody.split('\n');
-            let errorLine = 'Unknown';
-            for (let i = 0; i < lines.length; i++) {
-                if (lines[i].includes('{') || lines[i].includes('}') || lines[i].includes('"')) {
-                    errorLine = `Line ${i+1}: ${lines[i]}`;
-                    break;
+            // Get raw body
+            if (req.body) {
+                if (typeof req.body === 'string') {
+                    rawBody = req.body;
+                } else if (Buffer.isBuffer(req.body)) {
+                    rawBody = req.body.toString('utf8');
+                } else if (typeof req.body === 'object') {
+                    // Jika body sudah di-parse oleh Vercel
+                    data = req.body;
+                    rawBody = JSON.stringify(req.body);
                 }
             }
             
-            return res.status(400).json({ 
-                status: 'error', 
-                message: 'Invalid JSON format: ' + parseError.message,
-                error_at: errorLine,
-                raw_received: rawBody.substring(0, 200),
-                correct_format: '{"symbol":"EURUSD","bid":1.08542,"equity":10000}'
-            });
-        }
-        
-        // Validate required fields
-        if (!data || typeof data !== 'object') {
-            console.log('❌ Data is not an object:', typeof data);
-            return res.status(400).json({ 
-                status: 'error', 
-                message: 'Data must be a JSON object',
-                received_type: typeof data
-            });
-        }
-        
-        if (!data.symbol || data.symbol.trim() === '') {
-            console.log('❌ Missing symbol field');
-            return res.status(400).json({ 
-                status: 'error', 
-                message: 'Missing required field: symbol',
-                received_fields: Object.keys(data),
-                example: '{"symbol":"EURUSD"}'
-            });
-        }
-        
-        const symbol = data.symbol.replace(/[^A-Za-z0-9]/g, '');
-        
-        // Add metadata
-        data.last_update = Date.now();
-        data.server_time = new Date().toISOString();
-        
-        // Store data
-        global.bbData.symbols[symbol] = data;
-        
-        console.log('✅ Data stored for:', symbol);
-        console.log('📊 Data fields:', Object.keys(data));
-        console.log('💰 Sample data:', {
-            symbol: data.symbol,
-            bid: data.bid,
-            equity: data.equity,
-            time: data.server_time
-        });
-        
-        // Clean old data
-        const now = Date.now();
-        const CLEANUP_MS = 120000;
-        
-        for (const s in global.bbData.symbols) {
-            const lastUpdate = global.bbData.symbols[s].last_update || 0;
-            if (now - lastUpdate > CLEANUP_MS) {
-                console.log('🧹 Cleaning old:', s);
-                delete global.bbData.symbols[s];
+            console.log('Raw body (first 500 chars):', rawBody.substring(0, 500));
+            
+            // Parse JSON jika belum
+            if (!data && rawBody) {
+                try {
+                    data = JSON.parse(rawBody);
+                } catch (parseError) {
+                    console.log('JSON parse error:', parseError.message);
+                    return res.status(400).json({
+                        status: 'error',
+                        message: 'Invalid JSON: ' + parseError.message,
+                        received: rawBody.substring(0, 200)
+                    });
+                }
             }
-        }
-        
-        const activeCount = Object.keys(global.bbData.symbols).length;
-        console.log('📈 Total active symbols:', activeCount);
-        
-        // Success response
-        res.status(200).json({
-            status: 'ok',
-            symbol: symbol,
-            received_at: data.server_time,
-            active_symbols: activeCount,
-            your_data_received: {
+            
+            if (!data) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'No data received'
+                });
+            }
+            
+            // Validate required field
+            if (!data.symbol) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Missing symbol field',
+                    received_fields: Object.keys(data)
+                });
+            }
+            
+            const symbol = data.symbol.replace(/[^A-Za-z0-9]/g, '');
+            
+            // Add timestamp
+            data.last_update = Date.now();
+            data.server_time = new Date().toISOString();
+            
+            // Store data
+            global.bbData.symbols[symbol] = data;
+            
+            console.log('✅ Data stored for symbol:', symbol);
+            console.log('📊 Data sample:', {
                 symbol: data.symbol,
                 bid: data.bid,
                 equity: data.equity,
-                fields_count: Object.keys(data).length
-            },
-            next_step: 'Data akan muncul di dashboard dalam 3 detik'
-        });
-        
-    } catch (err) {
-        console.error('❌ Server Error:', err.message);
-        console.error('Stack:', err.stack);
-        
-        res.status(500).json({ 
-            status: 'error', 
-            message: 'Server error: ' + err.message,
-            timestamp: new Date().toISOString(),
-            hint: 'Check Vercel logs for details'
-        });
+                time: data.server_time
+            });
+            
+            // Success response
+            return res.status(200).json({
+                status: 'ok',
+                symbol: symbol,
+                received_at: data.server_time,
+                active_symbols: Object.keys(global.bbData.symbols).length,
+                message: 'Data received successfully from EA'
+            });
+            
+        } catch (error) {
+            console.error('❌ Server error:', error);
+            return res.status(500).json({
+                status: 'error',
+                message: 'Server error: ' + error.message
+            });
+        }
     }
+    
+    // Jika method lain
+    return res.status(405).json({
+        status: 'error',
+        message: `Method ${req.method} not allowed. Only GET and POST are supported.`
+    });
 }
