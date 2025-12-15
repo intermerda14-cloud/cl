@@ -1,0 +1,34 @@
+// /api/debug.js - Untuk debugging
+if (!global.bbData) {
+    global.bbData = { symbols: {}, charts: {}, positions: {} };
+}
+
+export default function handler(req, res) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Content-Type', 'application/json');
+    
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+    
+    const symbols = global.bbData.symbols;
+    const symbolKeys = Object.keys(symbols);
+    
+    res.status(200).json({
+        status: 'ok',
+        time: new Date().toISOString(),
+        total_symbols: symbolKeys.length,
+        symbols: symbolKeys,
+        last_updates: symbolKeys.map(sym => ({
+            symbol: sym,
+            last_update: symbols[sym].last_update ? new Date(symbols[sym].last_update).toISOString() : null,
+            age_seconds: symbols[sym].last_update ? Math.floor((Date.now() - symbols[sym].last_update) / 1000) : null
+        })),
+        ea_needs_to_send_to: [
+            'POST /api/update',
+            'POST /api/chart', 
+            'POST /api/positions'
+        ]
+    });
+}
