@@ -379,43 +379,54 @@
             }
         }
         
-        async function fetchData() {
-            try {
-                // Check server status first
-                const pingRes = await fetch(API_BASE + 'ping');
-                if (!pingRes.ok) {
-                    throw new Error(`Server error: ${pingRes.status}`);
-                }
-                
-                // Get debug info to see if EA is sending data
-                const debugRes = await fetch(API_BASE + 'debug');
-                const debugData = await debugRes.json();
-                
-                console.log('Debug info:', debugData);
-                
-                // If EA is sending data, fetch full data
-                if (debugData.total_symbols > 0) {
-                    const response = await fetch(API_BASE + 'get_all_symbols');
-                    const data = await response.json();
-                    
-                    if (data.status === 'ok') {
-                        updateDashboard(data);
-                        setConnected();
-                        lastDataTime = Date.now();
-                        return;
-                    }
-                }
-                
-                // No data from EA
-                showNoDataState(debugData);
-                setDisconnected();
-                
-            } catch (error) {
-                console.error('❌ Fetch error:', error);
-                showErrorState(error);
-                setDisconnected();
+async function fetchData() {
+    try {
+        console.log('🔄 Fetching data...', new Date().toISOString());
+        
+        // Test server connection first
+        const pingRes = await fetch(API_BASE + 'ping');
+        if (!pingRes.ok) {
+            throw new Error(`Server error: ${pingRes.status}`);
+        }
+        
+        // Get debug info
+        const debugRes = await fetch(API_BASE + 'debug');
+        
+        // Check if response is JSON
+        const contentType = debugRes.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+            const text = await debugRes.text();
+            console.error('❌ Non-JSON response:', text.substring(0, 200));
+            throw new Error('Server returned non-JSON response');
+        }
+        
+        const debugData = await debugRes.json();
+        console.log('🔍 Debug data:', debugData);
+        
+        // If EA is sending data
+        if (debugData.total_symbols > 0) {
+            const response = await fetch(API_BASE + 'get_all_symbols');
+            const data = await response.json();
+            
+            if (data.status === 'ok') {
+                updateDashboard(data);
+                setConnected();
+                return;
             }
         }
+        
+        // No data from EA
+        showNoDataState(debugData);
+        setDisconnected();
+        
+    } catch (error) {
+        console.error('❌ Fetch error:', error);
+        
+        // Tampilkan error detail
+        showErrorState(error);
+        setDisconnected();
+    }
+}
         
         function showNoDataState(debugData) {
             const age = debugData.last_updates && debugData.last_updates[0] 
