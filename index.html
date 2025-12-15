@@ -381,32 +381,32 @@
         
 async function fetchData() {
     try {
-        console.log('🔄 Fetching data...', new Date().toISOString());
+        console.log('🔄 Fetch attempt:', new Date().toISOString());
         
-        // Test server connection first
-        const pingRes = await fetch(API_BASE + 'ping');
-        if (!pingRes.ok) {
-            throw new Error(`Server error: ${pingRes.status}`);
-        }
+        // Coba debug endpoint
+        const debugRes = await fetch('/api/debug');
         
-        // Get debug info
-        const debugRes = await fetch(API_BASE + 'debug');
-        
-        // Check if response is JSON
-        const contentType = debugRes.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-            const text = await debugRes.text();
-            console.error('❌ Non-JSON response:', text.substring(0, 200));
-            throw new Error('Server returned non-JSON response');
+        if (!debugRes.ok) {
+            console.warn('⚠️ Debug endpoint not ready, trying ping...');
+            // Fallback ke ping
+            const pingRes = await fetch('/api/ping');
+            const pingData = await pingRes.json();
+            
+            showWaitingState('server_ready', 
+                `✅ Server Online: ${pingData.message}<br>
+                Version: ${pingData.version}<br>
+                Waiting for EA data...`);
+            setDisconnected();
+            return;
         }
         
         const debugData = await debugRes.json();
-        console.log('🔍 Debug data:', debugData);
+        console.log('📊 Server status:', debugData);
         
-        // If EA is sending data
+        // Jika ada data dari EA
         if (debugData.total_symbols > 0) {
-            const response = await fetch(API_BASE + 'get_all_symbols');
-            const data = await response.json();
+            const dataRes = await fetch('/api/get_all_symbols');
+            const data = await dataRes.json();
             
             if (data.status === 'ok') {
                 updateDashboard(data);
@@ -415,15 +415,21 @@ async function fetchData() {
             }
         }
         
-        // No data from EA
-        showNoDataState(debugData);
+        // Tidak ada data dari EA
+        showWaitingState('waiting_ea', 
+            `📡 Waiting for EA Connection<br>
+            Active symbols: ${debugData.total_symbols}<br>
+            Server time: ${debugData.timestamp}`);
         setDisconnected();
         
     } catch (error) {
-        console.error('❌ Fetch error:', error);
+        console.error('🌐 Connection error:', error);
         
-        // Tampilkan error detail
-        showErrorState(error);
+        // Tampilkan error yang user-friendly
+        showWaitingState('error', 
+            `🌐 Connection Issue<br>
+            Error: ${error.message}<br>
+            Check: 1. Internet 2. Server status 3. EA settings`);
         setDisconnected();
     }
 }
