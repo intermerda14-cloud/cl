@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BB Scalper V4.2 Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3/build/global/luxon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, sans-serif; 
+            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
+            color: #fff; 
+            min-height: 100vh;
+        }
+        .header {
+            background: rgba(0,0,0,0.3);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .logo { font-size: 24px; font-weight: bold; color: #ffd700; }
+        .logo span { color: #00ff88; }
+        .status-bar { display: flex; gap: 20px; flex-wrap: wrap; }
+        .status-item {
+            background: rgba(255,255,255,0.1);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+        .status-item.connected { border: 1px solid #00ff88; }
+        .status-item.disconnected { border: 1px solid #ff4444; }
+        .status-item .dot { 
+            display: inline-block; 
+            width: 8px; height: 8px; 
+            border-radius: 50%; 
+            margin-right: 6px;
+            animation: pulse 2s infinite;
+        }
+        .dot.green { background: #00ff88; }
+        .dot.red { background: #ff4444; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .container { 
+            display: grid; 
+            grid-template-columns: 1fr 350px; 
+            gap: 20px; 
+            padding: 20px; 
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+        .chart-section {
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .symbol-title { font-size: 20px; font-weight: bold; }
+        .symbol-title .price { color: #00ff88; margin-left: 15px; }
+        .chart-container { height: 400px; position: relative; }
+        .waiting {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 300px;
+            color: #ffd700;
+        }
+        .waiting .icon { font-size: 48px; margin-bottom: 20px; }
+        .sidebar { display: flex; flex-direction: column; gap: 15px; }
+        .card {
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .card-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #888;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .equity { font-size: 36px; font-weight: bold; margin-bottom: 15px; }
+        .equity.positive { color: #00ff88; }
+        .equity.negative { color: #ff4444; }
+        .account-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .account-row:last-child { border: none; }
+        .account-label { color: #888; }
+        .account-value.positive { color: #00ff88; }
+        .account-value.negative { color: #ff4444; }
+        .symbol-list { display: flex; flex-direction: column; gap: 10px; }
+        .symbol-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .symbol-item:hover { background: rgba(255,255,255,0.1); }
+        .symbol-item.active { border: 1px solid #ffd700; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .stat-item { text-align: center; }
+        .stat-value { font-size: 24px; font-weight: bold; color: #00ff88; }
+        .stat-label { font-size: 11px; color: #888; margin-top: 5px; }
+        .tier-row { display: flex; justify-content: space-around; margin-top: 15px; }
+        .tier-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            background: rgba(255,255,255,0.1);
+        }
+        .tier-badge.active { background: #00ff88; color: #000; }
+        .ml-confidence { text-align: center; padding: 20px; }
+        .ml-value { font-size: 48px; font-weight: bold; }
+        .ml-value.high { color: #00ff88; }
+        .ml-value.medium { color: #ffd700; }
+        .ml-value.low { color: #ff4444; }
+        .ml-label { color: #888; margin-top: 10px; }
+        .footer { text-align: center; padding: 20px; color: #555; font-size: 12px; }
+        @media (max-width: 1200px) {
+            .container { grid-template-columns: 1fr; }
+            .sidebar { display: grid; grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 768px) {
+            .sidebar { grid-template-columns: 1fr; }
+            .header { flex-direction: column; gap: 15px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">🤖 BB SCALPER <span>V4.2</span></div>
+        <div class="status-bar">
+            <div class="status-item" id="connectionBox">
+                <span class="dot" id="statusDot"></span>
+                <span id="connectionStatus">Connecting...</span>
+            </div>
+            <div class="status-item">📊 Active: <span id="activeCount">0</span></div>
+            <div class="status-item">💰 Equity: <span id="headerEquity">$0</span></div>
+            <div class="status-item">🕐 <span id="serverTime">--:--:--</span></div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="chart-section">
+            <div class="chart-header">
+                <div class="symbol-title">
+                    <span id="chartSymbol">--</span>
+                    <span class="price" id="chartPrice">$0.00</span>
+                </div>
+                <div>
+                    <span id="chartSpread">Spread: --</span> | 
+                    <span id="chartVol">Vol: --</span>
+                </div>
+            </div>
+            
+            <div id="waitingState" class="waiting">
+                <div class="icon">⏳</div>
+                <h2>Waiting for EA Connection...</h2>
+                <p>Attach BB Scalper V4.2 EA to your charts in MT5</p>
+                <p style="margin-top: 10px; font-size: 12px;">Data will appear automatically when EA connects</p>
+            </div>
+            
+            <div id="chartContainer" class="chart-container" style="display: none;">
+                <canvas id="priceChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="sidebar">
+            <div class="card">
+                <div class="card-title">💰 Account Summary</div>
+                <div class="equity" id="equity">$0.00</div>
+                <div class="account-row">
+                    <span class="account-label">Balance</span>
+                    <span class="account-value" id="balance">$0.00</span>
+                </div>
+                <div class="account-row">
+                    <span class="account-label">Today P/L</span>
+                    <span class="account-value" id="dailyPnl">$0.00</span>
+                </div>
+                <div class="account-row">
+                    <span class="account-label">Floating</span>
+                    <span class="account-value" id="floating">$0.00</span>
+                </div>
+                <div class="account-row">
+                    <span class="account-label">Commission</span>
+                    <span class="account-value" id="commission">$0.00</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">📊 Active Symbols</div>
+                <div class="symbol-list" id="symbolList">
+                    <div style="color: #888; text-align: center; padding: 20px;">No active symbols</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">📈 Performance</div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="totalTrades">0</div>
+                        <div class="stat-label">Total Trades</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="winRate">0%</div>
+                        <div class="stat-label">Win Rate</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="wins">0</div>
+                        <div class="stat-label">Wins</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="losses">0</div>
+                        <div class="stat-label">Losses</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">🎯 Stats & Tiers</div>
+                <div class="account-row">
+                    <span class="account-label">Sharpe Ratio</span>
+                    <span class="account-value" id="sharpe">0.00</span>
+                </div>
+                <div class="account-row">
+                    <span class="account-label">Profit Factor</span>
+                    <span class="account-value" id="profitFactor">0.00</span>
+                </div>
+                <div class="account-row">
+                    <span class="account-label">Expectancy</span>
+                    <span class="account-value" id="expectancy">$0.00</span>
+                </div>
+                <div class="tier-row">
+                    <span class="tier-badge" id="tier1">T1: 0</span>
+                    <span class="tier-badge" id="tier2">T2: 0</span>
+                    <span class="tier-badge" id="tier3">T3: 0</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">🤖 ML Engine</div>
+                <div class="ml-confidence">
+                    <div class="ml-value" id="mlConfidence">--%</div>
+                    <div class="ml-label">Confidence Score</div>
+                </div>
+                <div class="account-row">
+                    <span class="account-label">Confluence</span>
+                    <span class="account-value" id="confluence">--</span>
+                </div>
+                <div class="account-row">
+                    <span class="account-label">Pattern</span>
+                    <span class="account-value" id="pattern">--</span>
+                </div>
+                <div class="account-row">
+                    <span class="account-label">Volatility</span>
+                    <span class="account-value" id="volatility">--</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="footer">
+        BB Scalper V4.2 Ultimate Pro | Vercel Edition | Auto-refresh 3s
+    </div>
+    
+    <script>
+        // API Base - Vercel uses /api/ path
+        const API_BASE = '/api/';
+        const REFRESH_INTERVAL = 3000;
+        
+        let chart = null;
+        let currentSymbol = null;
+        let isConnected = false;
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            updateServerTime();
+            setInterval(updateServerTime, 1000);
+            fetchData();
+            setInterval(fetchData, REFRESH_INTERVAL);
+        });
+        
+        function updateServerTime() {
+            document.getElementById('serverTime').textContent = 
+                new Date().toLocaleTimeString('en-US', { hour12: false });
+        }
+        
+        async function fetchData() {
+            try {
+                const response = await fetch(API_BASE + 'get_all_symbols?t=' + Date.now());
+                const data = await response.json();
+                
+                if (data.status === 'ok') {
+                    updateDashboard(data);
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                setDisconnected();
+            }
+        }
+        
+        function updateDashboard(data) {
+            const symbols = data.symbols || {};
+            const symbolKeys = Object.keys(symbols);
+            const activeCount = symbolKeys.length;
+            
+            document.getElementById('activeCount').textContent = activeCount;
+            
+            if (activeCount > 0) {
+                setConnected();
+                document.getElementById('waitingState').style.display = 'none';
+                document.getElementById('chartContainer').style.display = 'block';
+                
+                if (!currentSymbol || !symbols[currentSymbol]) {
+                    currentSymbol = symbolKeys[0];
+                }
+                
+                if (currentSymbol && symbols[currentSymbol]) {
+                    updateSymbolData(symbols[currentSymbol]);
+                }
+                
+                updateSymbolList(symbols);
+            } else {
+                setDisconnected();
+                document.getElementById('waitingState').style.display = 'flex';
+                document.getElementById('chartContainer').style.display = 'none';
+            }
+        }
+        
+        function updateSymbolData(d) {
+            document.getElementById('chartSymbol').textContent = d.symbol || '--';
+            document.getElementById('chartPrice').textContent = '$' + (d.bid || 0).toFixed(2);
+            document.getElementById('chartSpread').textContent = 'Spread: ' + (d.spread || 0).toFixed(1);
+            document.getElementById('chartVol').textContent = 'Vol: ' + (d.volatility || '--');
+            
+            const equity = parseFloat(d.equity) || 0;
+            const dailyPnl = parseFloat(d.daily_pnl) || 0;
+            const floating = parseFloat(d.floating) || 0;
+            
+            document.getElementById('equity').textContent = '$' + equity.toFixed(2);
+            document.getElementById('equity').className = 'equity ' + (dailyPnl >= 0 ? 'positive' : 'negative');
+            document.getElementById('headerEquity').textContent = '$' + equity.toFixed(0);
+            document.getElementById('balance').textContent = '$' + (parseFloat(d.balance) || 0).toFixed(2);
+            
+            const pnlEl = document.getElementById('dailyPnl');
+            pnlEl.textContent = (dailyPnl >= 0 ? '+' : '') + '$' + dailyPnl.toFixed(2);
+            pnlEl.className = 'account-value ' + (dailyPnl >= 0 ? 'positive' : 'negative');
+            
+            const floatEl = document.getElementById('floating');
+            floatEl.textContent = (floating >= 0 ? '+' : '') + '$' + floating.toFixed(2);
+            floatEl.className = 'account-value ' + (floating >= 0 ? 'positive' : 'negative');
+            
+            document.getElementById('commission').textContent = '$' + (parseFloat(d.commission) || 0).toFixed(2);
+            document.getElementById('totalTrades').textContent = d.total_trades || 0;
+            document.getElementById('winRate').textContent = (d.win_rate || 0).toFixed(1) + '%';
+            document.getElementById('wins').textContent = d.wins || 0;
+            document.getElementById('losses').textContent = d.losses || 0;
+            document.getElementById('sharpe').textContent = (d.sharpe || 0).toFixed(2);
+            document.getElementById('profitFactor').textContent = (d.profit_factor || 0).toFixed(2);
+            document.getElementById('expectancy').textContent = '$' + (d.expectancy || 0).toFixed(2);
+            document.getElementById('tier1').textContent = 'T1: ' + (d.tier1 || 0);
+            document.getElementById('tier2').textContent = 'T2: ' + (d.tier2 || 0);
+            document.getElementById('tier3').textContent = 'T3: ' + (d.tier3 || 0);
+            
+            const mlConf = parseFloat(d.ml_confidence) || 0;
+            const mlEl = document.getElementById('mlConfidence');
+            mlEl.textContent = mlConf.toFixed(0) + '%';
+            mlEl.className = 'ml-value ' + (mlConf >= 70 ? 'high' : mlConf >= 50 ? 'medium' : 'low');
+            
+            document.getElementById('confluence').textContent = d.confluence || '--';
+            document.getElementById('pattern').textContent = d.pattern || 'None';
+            document.getElementById('volatility').textContent = d.volatility || '--';
+            
+            fetchChartData(d.symbol);
+        }
+        
+        function updateSymbolList(symbols) {
+            const list = document.getElementById('symbolList');
+            const keys = Object.keys(symbols);
+            
+            if (keys.length === 0) {
+                list.innerHTML = '<div style="color: #888; text-align: center; padding: 20px;">No active symbols</div>';
+                return;
+            }
+            
+            list.innerHTML = keys.map(sym => {
+                const d = symbols[sym];
+                return `<div class="symbol-item ${sym === currentSymbol ? 'active' : ''}" onclick="selectSymbol('${sym}')">
+                    <span>${sym}</span>
+                    <span style="color: #00ff88">$${(d.bid || 0).toFixed(2)}</span>
+                </div>`;
+            }).join('');
+        }
+        
+        function selectSymbol(symbol) {
+            currentSymbol = symbol;
+            fetchData();
+        }
+        
+        async function fetchChartData(symbol) {
+            if (!symbol) return;
+            try {
+                const response = await fetch(API_BASE + 'chart?symbol=' + symbol + '&t=' + Date.now());
+                const data = await response.json();
+                if (data.status === 'ok' && data.data) {
+                    updateChart(data.data);
+                }
+            } catch (error) {
+                console.error('Chart fetch error:', error);
+            }
+        }
+        
+        function updateChart(chartData) {
+            if (!chartData || chartData.length === 0) return;
+            
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            const labels = chartData.map(d => new Date(d.t * 1000));
+            const prices = chartData.map(d => d.c);
+            
+            if (chart) {
+                chart.data.labels = labels;
+                chart.data.datasets[0].data = prices;
+                chart.update('none');
+            } else {
+                chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Price',
+                            data: prices,
+                            borderColor: '#00ff88',
+                            borderWidth: 2,
+                            fill: false,
+                            pointRadius: 0,
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: {
+                                type: 'time',
+                                time: { unit: 'minute' },
+                                grid: { color: 'rgba(255,255,255,0.05)' },
+                                ticks: { color: '#888', maxTicksLimit: 8 }
+                            },
+                            y: {
+                                grid: { color: 'rgba(255,255,255,0.05)' },
+                                ticks: { color: '#888' }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        
+        function setConnected() {
+            if (!isConnected) {
+                isConnected = true;
+                document.getElementById('connectionStatus').textContent = 'Connected';
+                document.getElementById('connectionBox').className = 'status-item connected';
+                document.getElementById('statusDot').className = 'dot green';
+            }
+        }
+        
+        function setDisconnected() {
+            isConnected = false;
+            document.getElementById('connectionStatus').textContent = 'Waiting...';
+            document.getElementById('connectionBox').className = 'status-item disconnected';
+            document.getElementById('statusDot').className = 'dot red';
+        }
+    </script>
+</body>
+</html>
