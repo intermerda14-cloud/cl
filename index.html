@@ -74,8 +74,26 @@
             justify-content: center;
             height: 300px;
             color: #ffd700;
+            text-align: center;
+            padding: 20px;
         }
         .waiting .icon { font-size: 48px; margin-bottom: 20px; }
+        .debug-info {
+            background: rgba(0,0,0,0.5);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            font-size: 12px;
+            text-align: left;
+            max-width: 600px;
+            border-left: 3px solid #ffd700;
+        }
+        .debug-info code {
+            background: rgba(255,255,255,0.1);
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
         .sidebar { display: flex; flex-direction: column; gap: 15px; }
         .card {
             background: rgba(0,0,0,0.3);
@@ -137,6 +155,17 @@
         .ml-value.low { color: #ff4444; }
         .ml-label { color: #888; margin-top: 10px; }
         .footer { text-align: center; padding: 20px; color: #555; font-size: 12px; }
+        .test-button {
+            background: #00ff88;
+            color: #000;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .test-button:hover { background: #00cc66; }
         @media (max-width: 1200px) {
             .container { grid-template-columns: 1fr; }
             .sidebar { display: grid; grid-template-columns: repeat(2, 1fr); }
@@ -175,10 +204,7 @@
             </div>
             
             <div id="waitingState" class="waiting">
-                <div class="icon">⏳</div>
-                <h2>Waiting for EA Connection...</h2>
-                <p>Attach BB Scalper V4.2 EA to your charts in MT5</p>
-                <p style="margin-top: 10px; font-size: 12px;">Data will appear automatically when EA connects</p>
+                <!-- Dynamic content will be loaded here -->
             </div>
             
             <div id="chartContainer" class="chart-container" style="display: none;">
@@ -285,19 +311,29 @@
     </div>
     
     <script>
-        // API Base - Vercel uses /api/ path
+        // API Configuration
         const API_BASE = '/api/';
-        const REFRESH_INTERVAL = 3000;
+        const REFRESH_INTERVAL = 3000; // 3 seconds
         
         let chart = null;
         let currentSymbol = null;
         let isConnected = false;
+        let lastDataTime = 0;
         
+        // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
             updateServerTime();
             setInterval(updateServerTime, 1000);
+            
+            // Show initial connection state
+            showWaitingState('initializing', 'Initializing dashboard...');
+            
+            // Start data fetching
             fetchData();
             setInterval(fetchData, REFRESH_INTERVAL);
+            
+            // Add manual test button
+            addTestButton();
         });
         
         function updateServerTime() {
@@ -305,18 +341,199 @@
                 new Date().toLocaleTimeString('en-US', { hour12: false });
         }
         
+        function addTestButton() {
+            const waitingDiv = document.getElementById('waitingState');
+            const button = document.createElement('button');
+            button.className = 'test-button';
+            button.textContent = '🔄 Test Server Connection';
+            button.onclick = testServerConnection;
+            waitingDiv.appendChild(button);
+        }
+        
+        async function testServerConnection() {
+            try {
+                showWaitingState('testing', 'Testing server connection...');
+                
+                // Test ping endpoint
+                const pingRes = await fetch(API_BASE + 'ping');
+                const pingData = await pingRes.json();
+                
+                // Test debug endpoint
+                const debugRes = await fetch(API_BASE + 'debug');
+                const debugData = await debugRes.json();
+                
+                showWaitingState('test_success', 
+                    `✅ Server is online!<br>
+                    Ping: ${pingData.message}<br>
+                    Active symbols: ${debugData.total_symbols}<br>
+                    Server time: ${pingData.time}`);
+                
+                console.log('Server test passed:', pingData, debugData);
+                
+            } catch (error) {
+                showWaitingState('test_failed', 
+                    `❌ Server test failed!<br>
+                    Error: ${error.message}<br>
+                    Make sure Vercel deployment is complete.`);
+                console.error('Server test failed:', error);
+            }
+        }
+        
         async function fetchData() {
             try {
-                const response = await fetch(API_BASE + 'get_all_symbols?t=' + Date.now());
-                const data = await response.json();
-                
-                if (data.status === 'ok') {
-                    updateDashboard(data);
+                // Check server status first
+                const pingRes = await fetch(API_BASE + 'ping');
+                if (!pingRes.ok) {
+                    throw new Error(`Server error: ${pingRes.status}`);
                 }
+                
+                // Get debug info to see if EA is sending data
+                const debugRes = await fetch(API_BASE + 'debug');
+                const debugData = await debugRes.json();
+                
+                console.log('Debug info:', debugData);
+                
+                // If EA is sending data, fetch full data
+                if (debugData.total_symbols > 0) {
+                    const response = await fetch(API_BASE + 'get_all_symbols');
+                    const data = await response.json();
+                    
+                    if (data.status === 'ok') {
+                        updateDashboard(data);
+                        setConnected();
+                        lastDataTime = Date.now();
+                        return;
+                    }
+                }
+                
+                // No data from EA
+                showNoDataState(debugData);
+                setDisconnected();
+                
             } catch (error) {
-                console.error('Fetch error:', error);
+                console.error('❌ Fetch error:', error);
+                showErrorState(error);
                 setDisconnected();
             }
+        }
+        
+        function showNoDataState(debugData) {
+            const age = debugData.last_updates && debugData.last_updates[0] 
+                ? debugData.last_updates[0].age_seconds 
+                : null;
+            
+            let message = 'EA is not sending data to server';
+            let details = '';
+            
+            if (age !== null && age < 60) {
+                message = 'Data received but expired (cleaned up)';
+                details = `Last data was ${age} seconds ago (cleaned after 120s)`;
+            }
+            
+            showWaitingState('no_data', message, details, debugData);
+        }
+        
+        function showWaitingState(state, title, details, debugData) {
+            const waitingDiv = document.getElementById('waitingState');
+            
+            let icon = '📡';
+            let html = '';
+            
+            switch(state) {
+                case 'initializing':
+                    html = `
+                        <div class="icon">${icon}</div>
+                        <h2>${title}</h2>
+                        <p>Connecting to server...</p>
+                    `;
+                    break;
+                    
+                case 'no_data':
+                    html = `
+                        <div class="icon">${icon}</div>
+                        <h2>${title}</h2>
+                        <p>${details || 'Waiting for EA to send data'}</p>
+                        
+                        <div class="debug-info">
+                            <strong>Required EA Configuration:</strong><br>
+                            ✓ <code>UseWebMonitor = true</code><br>
+                            ✓ <code>WebMonitor_Host = "cl-ten-woad.vercel.app"</code><br>
+                            ✓ <code>WebMonitor_Path = "/"</code><br>
+                            ✓ Send to <code>/api/update</code> (NOT .php)<br>
+                            ✓ Check MT5 Experts tab for errors
+                        </div>
+                        
+                        ${debugData ? `
+                        <div class="debug-info">
+                            <strong>Server Status:</strong><br>
+                            • Server time: ${new Date().toISOString()}<br>
+                            • Active symbols: ${debugData.total_symbols}<br>
+                            • Last check: ${new Date().toLocaleTimeString()}
+                        </div>
+                        ` : ''}
+                    `;
+                    break;
+                    
+                case 'testing':
+                    html = `
+                        <div class="icon">🔍</div>
+                        <h2>${title}</h2>
+                        <p>Please wait...</p>
+                    `;
+                    break;
+                    
+                case 'test_success':
+                    html = `
+                        <div class="icon">✅</div>
+                        <h2>Server Connection Successful!</h2>
+                        <p>${details}</p>
+                        <p>Now waiting for EA to send trading data...</p>
+                    `;
+                    break;
+                    
+                case 'test_failed':
+                    html = `
+                        <div class="icon">❌</div>
+                        <h2>Connection Failed</h2>
+                        <p>${details}</p>
+                    `;
+                    break;
+                    
+                default:
+                    html = `
+                        <div class="icon">⏳</div>
+                        <h2>Waiting for EA Connection</h2>
+                        <p>Attach BB Scalper V4.2 EA to your charts in MT5</p>
+                        <p style="margin-top: 10px; font-size: 12px;">
+                            Data will appear automatically when EA connects
+                        </p>
+                    `;
+            }
+            
+            waitingDiv.innerHTML = html;
+            waitingDiv.style.display = 'flex';
+            document.getElementById('chartContainer').style.display = 'none';
+            
+            // Re-add test button if not present
+            if (!waitingDiv.querySelector('.test-button')) {
+                addTestButton();
+            }
+        }
+        
+        function showErrorState(error) {
+            const waitingDiv = document.getElementById('waitingState');
+            waitingDiv.innerHTML = `
+                <div class="icon">⚠️</div>
+                <h2>Connection Error</h2>
+                <p>${error.message || 'Unknown error'}</p>
+                <p style="font-size: 12px; color: #aaa;">
+                    Check console for details (F12 → Console)
+                </p>
+                <button onclick="location.reload()" class="test-button">
+                    🔄 Retry Connection
+                </button>
+            `;
+            waitingDiv.style.display = 'flex';
         }
         
         function updateDashboard(data) {
@@ -327,32 +544,32 @@
             document.getElementById('activeCount').textContent = activeCount;
             
             if (activeCount > 0) {
-                setConnected();
                 document.getElementById('waitingState').style.display = 'none';
                 document.getElementById('chartContainer').style.display = 'block';
                 
+                // Select first symbol if none selected
                 if (!currentSymbol || !symbols[currentSymbol]) {
                     currentSymbol = symbolKeys[0];
                 }
                 
+                // Update symbol data and chart
                 if (currentSymbol && symbols[currentSymbol]) {
                     updateSymbolData(symbols[currentSymbol]);
                 }
                 
+                // Update symbol list
                 updateSymbolList(symbols);
-            } else {
-                setDisconnected();
-                document.getElementById('waitingState').style.display = 'flex';
-                document.getElementById('chartContainer').style.display = 'none';
             }
         }
         
         function updateSymbolData(d) {
+            // Update main symbol info
             document.getElementById('chartSymbol').textContent = d.symbol || '--';
             document.getElementById('chartPrice').textContent = '$' + (d.bid || 0).toFixed(2);
             document.getElementById('chartSpread').textContent = 'Spread: ' + (d.spread || 0).toFixed(1);
             document.getElementById('chartVol').textContent = 'Vol: ' + (d.volatility || '--');
             
+            // Update account info
             const equity = parseFloat(d.equity) || 0;
             const dailyPnl = parseFloat(d.daily_pnl) || 0;
             const floating = parseFloat(d.floating) || 0;
@@ -362,14 +579,17 @@
             document.getElementById('headerEquity').textContent = '$' + equity.toFixed(0);
             document.getElementById('balance').textContent = '$' + (parseFloat(d.balance) || 0).toFixed(2);
             
+            // Update P/L with color coding
             const pnlEl = document.getElementById('dailyPnl');
             pnlEl.textContent = (dailyPnl >= 0 ? '+' : '') + '$' + dailyPnl.toFixed(2);
             pnlEl.className = 'account-value ' + (dailyPnl >= 0 ? 'positive' : 'negative');
             
+            // Update floating P/L
             const floatEl = document.getElementById('floating');
             floatEl.textContent = (floating >= 0 ? '+' : '') + '$' + floating.toFixed(2);
             floatEl.className = 'account-value ' + (floating >= 0 ? 'positive' : 'negative');
             
+            // Update other fields
             document.getElementById('commission').textContent = '$' + (parseFloat(d.commission) || 0).toFixed(2);
             document.getElementById('totalTrades').textContent = d.total_trades || 0;
             document.getElementById('winRate').textContent = (d.win_rate || 0).toFixed(1) + '%';
@@ -382,6 +602,7 @@
             document.getElementById('tier2').textContent = 'T2: ' + (d.tier2 || 0);
             document.getElementById('tier3').textContent = 'T3: ' + (d.tier3 || 0);
             
+            // Update ML data
             const mlConf = parseFloat(d.ml_confidence) || 0;
             const mlEl = document.getElementById('mlConfidence');
             mlEl.textContent = mlConf.toFixed(0) + '%';
@@ -391,7 +612,10 @@
             document.getElementById('pattern').textContent = d.pattern || 'None';
             document.getElementById('volatility').textContent = d.volatility || '--';
             
-            fetchChartData(d.symbol);
+            // Fetch chart data
+            if (d.symbol) {
+                fetchChartData(d.symbol);
+            }
         }
         
         function updateSymbolList(symbols) {
@@ -420,7 +644,7 @@
         async function fetchChartData(symbol) {
             if (!symbol) return;
             try {
-                const response = await fetch(API_BASE + 'chart?symbol=' + symbol + '&t=' + Date.now());
+                const response = await fetch(API_BASE + 'chart?symbol=' + symbol);
                 const data = await response.json();
                 if (data.status === 'ok' && data.data) {
                     updateChart(data.data);
