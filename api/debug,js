@@ -1,11 +1,11 @@
-// /api/debug.js - Untuk debugging
+// /api/debug.js
 if (!global.bbData) {
     global.bbData = { symbols: {}, charts: {}, positions: {} };
 }
 
 export default function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Content-Type', 'application/json');
     
     if (req.method === 'OPTIONS') {
@@ -17,7 +17,7 @@ export default function handler(req, res) {
     
     res.status(200).json({
         status: 'ok',
-        time: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
         total_symbols: symbolKeys.length,
         symbols: symbolKeys,
         last_updates: symbolKeys.map(sym => ({
@@ -25,10 +25,14 @@ export default function handler(req, res) {
             last_update: symbols[sym].last_update ? new Date(symbols[sym].last_update).toISOString() : null,
             age_seconds: symbols[sym].last_update ? Math.floor((Date.now() - symbols[sym].last_update) / 1000) : null
         })),
-        ea_needs_to_send_to: [
-            'POST /api/update',
-            'POST /api/chart', 
-            'POST /api/positions'
-        ]
+        debug_info: {
+            storage_status: 'OK',
+            ea_should_send_to: 'POST /api/update',
+            ea_config: {
+                host: 'cl-ten-woad.vercel.app',
+                path: '/',
+                endpoints: ['update', 'chart', 'positions']
+            }
+        }
     });
 }
