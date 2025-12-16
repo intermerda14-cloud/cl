@@ -1,57 +1,67 @@
-// In-memory storage
-if (!global.bbData) {
-    global.bbData = { symbols: {}, charts: {}, positions: {} };
-}
+// /api/chart.js
+let storage = { symbols: {}, charts: {}, positions: {} };
 
 export default function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Content-Type', 'application/json');
     
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
     
-    // POST - Save chart data
+    // POST - Save chart data from EA
     if (req.method === 'POST') {
         try {
             const data = req.body;
+            
             if (!data || !data.symbol) {
                 return res.status(400).json({ status: 'error' });
             }
             
-            const symbol = data.symbol.replace(/[^A-Za-z0-9]/g, '');
+            const symbol = data.symbol;
             data.last_update = Date.now();
-            global.bbData.charts[symbol] = data;
             
-            res.status(200).json({ status: 'ok', symbol: symbol });
+            storage.charts[symbol] = data;
+            
+            console.log('📈 Chart data saved for:', symbol);
+            
+            return res.status(200).json({ 
+                status: 'ok', 
+                symbol: symbol 
+            });
+            
         } catch (err) {
-            res.status(500).json({ status: 'error' });
+            return res.status(500).json({ status: 'error' });
         }
-        return;
     }
     
-    // GET - Return chart data
+    // GET - Return chart data for frontend
     if (req.method === 'GET') {
-        const symbol = (req.query.symbol || '').replace(/[^A-Za-z0-9]/g, '');
+        const symbol = req.query.symbol || '';
         
-        let targetSymbol = symbol;
-        if (!targetSymbol || !global.bbData.charts[targetSymbol]) {
-            targetSymbol = Object.keys(global.bbData.charts)[0];
+        if (symbol && storage.charts[symbol]) {
+            return res.status(200).json({
+                status: 'ok',
+                symbol: symbol,
+                data: storage.charts[symbol].data || []
+            });
         }
         
-        if (!targetSymbol || !global.bbData.charts[targetSymbol]) {
-            return res.status(200).json({ status: 'error', message: 'No chart data' });
+        // Return first available chart
+        const firstSymbol = Object.keys(storage.charts)[0];
+        if (firstSymbol) {
+            return res.status(200).json({
+                status: 'ok',
+                symbol: firstSymbol,
+                data: storage.charts[firstSymbol].data || []
+            });
         }
         
-        res.status(200).json({
-            status: 'ok',
-            symbol: targetSymbol,
-            data: global.bbData.charts[targetSymbol].data || []
+        return res.status(200).json({
+            status: 'error',
+            message: 'No chart data'
         });
-        return;
     }
     
-    res.status(405).json({ status: 'error' });
+    return res.status(405).json({ status: 'error' });
 }
