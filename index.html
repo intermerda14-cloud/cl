@@ -3,7 +3,459 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BB Scalper V4.2 Dashboard</title><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BB Scalper V4.2 Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@latest/dist/chartjs-chart-financial.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3/build/global/luxon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1"></script>
+    <style>
+        /* Sama seperti sebelumnya, tapi tambah ini di akhir */
+        
+        /* CANDLESTICK STYLING OVERRIDE */
+        .chartjs-render-monitor {
+            border-radius: 12px;
+        }
+        
+        /* Custom candlestick colors */
+        :root {
+            --bullish-color: #00ff88;
+            --bearish-color: #ff4444;
+            --bullish-bg: rgba(0, 255, 136, 0.3);
+            --bearish-bg: rgba(255, 68, 68, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <!-- SAMA PERSIS seperti sebelumnya sampai bagian script -->
+    
+    <script>
+        // Configuration
+        const API_BASE = '/api/';
+        const REFRESH_INTERVAL = 3000;
+        
+        let chart = null;
+        let currentSymbol = null;
+        let isConnected = false;
+        let lastChartUpdate = 0;
+        
+        // CHART STYLING - INI YANG DIPERBAIKI!
+        const CHART_STYLE = {
+            // Colors
+            bullishColor: '#00ff88',
+            bearishColor: '#ff4444',
+            bullishBackground: 'rgba(0, 255, 136, 0.4)',
+            bearishBackground: 'rgba(255, 68, 68, 0.4)',
+            gridColor: 'rgba(255, 255, 255, 0.08)',
+            textColor: 'rgba(255, 255, 255, 0.7)',
+            background: 'rgba(10, 10, 20, 0.3)',
+            borderColor: 'rgba(255, 255, 255, 0.15)',
+            
+            // Candlestick styling
+            candleUp: {
+                color: '#00ff88',
+                borderColor: '#00cc66',
+                borderWidth: 1,
+                lineWidth: 1
+            },
+            candleDown: {
+                color: '#ff4444',
+                borderColor: '#cc0000',
+                borderWidth: 1,
+                lineWidth: 1
+            }
+        };
+        
+        // Start when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 BB Scalper V4.2 Dashboard - Professional Charts');
+            
+            // Update server time
+            updateServerTime();
+            setInterval(updateServerTime, 1000);
+            
+            // Setup timeframe selector
+            document.getElementById('timeframeSelect').addEventListener('change', function() {
+                console.log('📊 Timeframe changed to:', this.value);
+                if (currentSymbol) {
+                    fetchChartData(currentSymbol);
+                }
+            });
+            
+            // Show initial message
+            showWaitingMessage('initial');
+            
+            // Start data fetching
+            fetchData();
+            setInterval(fetchData, REFRESH_INTERVAL);
+        });
+        
+        // ... (fungsi lainnya sama seperti sebelumnya sampai fetchChartData) ...
+        
+        // ========== CREATE PROFESSIONAL CANDLESTICK CHART ==========
+        function updateChart(chartData, symbol, timeframe) {
+            if (!chartData || !Array.isArray(chartData) || chartData.length === 0) {
+                createPlaceholderChart(symbol);
+                return;
+            }
+            
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            
+            // Convert to candlestick format
+            const financialData = chartData.map(item => ({
+                x: new Date(item.t * 1000),
+                o: parseFloat(item.o) || 0,
+                h: parseFloat(item.h) || 0,
+                l: parseFloat(item.l) || 0,
+                c: parseFloat(item.c) || 0
+            }));
+            
+            // Update timeframe selector
+            document.getElementById('timeframeSelect').value = timeframe || 'M1';
+            
+            if (chart) {
+                chart.destroy();
+            }
+            
+            // Register candlestick controller if not already
+            if (Chart.controllers.candlestick === undefined) {
+                Chart.controllers.candlestick = Chart.controllers.financial;
+            }
+            
+            // Create EXTREMELY PROFESSIONAL candlestick chart
+            chart = new Chart(ctx, {
+                type: 'candlestick',
+                data: {
+                    datasets: [{
+                        label: `${symbol} • ${timeframe}`,
+                        data: financialData,
+                        // CRITICAL: Candlestick specific styling
+                        color: {
+                            up: CHART_STYLE.bullishColor,
+                            down: CHART_STYLE.bearishColor,
+                            unchanged: '#999'
+                        },
+                        borderColor: function(ctx) {
+                            const item = ctx.raw || {};
+                            return item.c >= item.o ? 
+                                CHART_STYLE.candleUp.borderColor : 
+                                CHART_STYLE.candleDown.borderColor;
+                        },
+                        borderWidth: function(ctx) {
+                            return 1;
+                        },
+                        backgroundColor: function(ctx) {
+                            const item = ctx.raw || {};
+                            return item.c >= item.o ? 
+                                CHART_STYLE.bullishBackground : 
+                                CHART_STYLE.bearishBackground;
+                        }
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 0 // No animation for real-time
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            labels: {
+                                color: CHART_STYLE.textColor,
+                                font: {
+                                    size: 14,
+                                    weight: 'bold',
+                                    family: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+                                },
+                                padding: 20
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 15, 25, 0.95)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#e0e0ff',
+                            borderColor: CHART_STYLE.bullishColor,
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            displayColors: false,
+                            padding: 12,
+                            titleFont: {
+                                size: 13,
+                                weight: '600'
+                            },
+                            bodyFont: {
+                                size: 12,
+                                weight: '500'
+                            },
+                            callbacks: {
+                                title: function(tooltipItems) {
+                                    const date = new Date(tooltipItems[0].parsed.x);
+                                    return date.toLocaleString('en-US', {
+                                        month: 'short',
+                                        day: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                    });
+                                },
+                                label: function(context) {
+                                    const point = context.raw;
+                                    const change = point.c - point.o;
+                                    const changePercent = ((change / point.o) * 100).toFixed(2);
+                                    const isBullish = point.c >= point.o;
+                                    
+                                    return [
+                                        `Open: $${point.o.toFixed(2)}`,
+                                        `High: $${point.h.toFixed(2)}`,
+                                        `Low: $${point.l.toFixed(2)}`,
+                                        `Close: $${point.c.toFixed(2)}`,
+                                        `Change: ${isBullish ? '+' : ''}$${change.toFixed(2)} (${isBullish ? '+' : ''}${changePercent}%)`
+                                    ];
+                                },
+                                labelColor: function(context) {
+                                    const point = context.raw;
+                                    const isBullish = point.c >= point.o;
+                                    
+                                    return {
+                                        borderColor: isBullish ? CHART_STYLE.bullishColor : CHART_STYLE.bearishColor,
+                                        backgroundColor: isBullish ? CHART_STYLE.bullishColor : CHART_STYLE.bearishColor
+                                    };
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: getTimeUnit(timeframe),
+                                displayFormats: {
+                                    minute: 'HH:mm',
+                                    hour: 'MM-dd HH:mm',
+                                    day: 'MM-dd'
+                                },
+                                tooltipFormat: 'MMM dd, yyyy HH:mm'
+                            },
+                            grid: {
+                                color: CHART_STYLE.gridColor,
+                                drawBorder: true,
+                                borderColor: CHART_STYLE.borderColor,
+                                lineWidth: 1
+                            },
+                            ticks: {
+                                color: CHART_STYLE.textColor,
+                                font: {
+                                    size: 11,
+                                    weight: '500',
+                                    family: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+                                },
+                                maxTicksLimit: 10,
+                                padding: 8,
+                                autoSkip: true,
+                                maxRotation: 0
+                            },
+                            border: {
+                                color: CHART_STYLE.borderColor,
+                                width: 1
+                            }
+                        },
+                        y: {
+                            position: 'right',
+                            grid: {
+                                color: CHART_STYLE.gridColor,
+                                drawBorder: true,
+                                borderColor: CHART_STYLE.borderColor,
+                                lineWidth: 1
+                            },
+                            ticks: {
+                                color: CHART_STYLE.textColor,
+                                font: {
+                                    size: 12,
+                                    weight: '600',
+                                    family: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+                                },
+                                callback: function(value) {
+                                    return '$' + value.toFixed(2);
+                                },
+                                padding: 10
+                            },
+                            border: {
+                                color: CHART_STYLE.borderColor,
+                                width: 1
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index',
+                        axis: 'x'
+                    },
+                    elements: {
+                        point: {
+                            radius: 0,
+                            hitRadius: 10,
+                            hoverRadius: 4
+                        },
+                        line: {
+                            tension: 0
+                        }
+                    },
+                    layout: {
+                        padding: {
+                            left: 10,
+                            right: 20,
+                            top: 20,
+                            bottom: 10
+                        }
+                    }
+                }
+            });
+            
+            console.log(`📈 Professional candlestick chart rendered: ${financialData.length} candles (${timeframe})`);
+        }
+        
+        // ========== CREATE BEAUTIFUL PLACEHOLDER CHART ==========
+        function createPlaceholderChart(symbol) {
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            
+            if (chart) {
+                chart.destroy();
+            }
+            
+            // Create beautiful placeholder data
+            const placeholderData = [];
+            const now = Date.now();
+            let price = 100;
+            
+            for (let i = 100; i >= 0; i--) {
+                const time = new Date(now - i * 60000);
+                const open = price;
+                const high = open + Math.random() * 3;
+                const low = open - Math.random() * 3;
+                const close = low + Math.random() * (high - low);
+                
+                placeholderData.push({
+                    x: time,
+                    o: open,
+                    h: high,
+                    l: low,
+                    c: close
+                });
+                
+                price = close;
+            }
+            
+            chart = new Chart(ctx, {
+                type: 'candlestick',
+                data: {
+                    datasets: [{
+                        label: `${symbol} • Sample Data`,
+                        data: placeholderData,
+                        color: {
+                            up: CHART_STYLE.bullishColor,
+                            down: CHART_STYLE.bearishColor,
+                            unchanged: '#999'
+                        },
+                        borderColor: CHART_STYLE.borderColor,
+                        borderWidth: 1,
+                        backgroundColor: function(ctx) {
+                            const item = ctx.raw || {};
+                            return item.c >= item.o ? 
+                                CHART_STYLE.bullishBackground : 
+                                CHART_STYLE.bearishBackground;
+                        }
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            labels: {
+                                color: CHART_STYLE.textColor,
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: '📊 Waiting for EA Candlestick Data',
+                            color: '#ffd700',
+                            font: {
+                                size: 16,
+                                weight: 'bold'
+                            },
+                            padding: {
+                                top: 20,
+                                bottom: 20
+                            }
+                        },
+                        tooltip: {
+                            enabled: true,
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'minute',
+                                displayFormats: {
+                                    minute: 'HH:mm'
+                                }
+                            },
+                            grid: {
+                                color: CHART_STYLE.gridColor
+                            },
+                            ticks: {
+                                color: CHART_STYLE.textColor,
+                                maxTicksLimit: 8
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: CHART_STYLE.gridColor
+                            },
+                            ticks: {
+                                color: CHART_STYLE.textColor,
+                                callback: function(value) {
+                                    return '$' + value.toFixed(2);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            console.log('📊 Created beautiful placeholder chart');
+        }
+        
+        // Helper functions (sama seperti sebelumnya)
+        function getTimeUnit(timeframe) {
+            switch(timeframe) {
+                case 'M1': return 'minute';
+                case 'M5': return 'minute';
+                case 'M15': return 'minute';
+                case 'M30': return 'minute';
+                case 'H1': return 'hour';
+                case 'H4': return 'hour';
+                case 'D1': return 'day';
+                default: return 'minute';
+            }
+        }
+        
+        // ... (sisanya sama seperti sebelumnya) ...
+    </script>
+</body>
+</html>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@latest/dist/chartjs-chart-financial.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/luxon@3/build/global/luxon.min.js"></script>
