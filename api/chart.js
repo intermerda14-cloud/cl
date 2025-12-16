@@ -1,4 +1,4 @@
-// /api/chart.js - FOR EA CHART DATA
+// /api/chart.js - FOR CANDLESTICK CHART DATA
 let chartStorage = {};
 
 export default function handler(req, res) {
@@ -11,11 +11,10 @@ export default function handler(req, res) {
         return res.status(200).end();
     }
     
-    // POST - Save chart data from EA
+    // === POST: Save chart data from EA ===
     if (req.method === 'POST') {
         try {
             const data = req.body;
-            console.log('📈 Receiving chart data from EA');
             
             if (!data || !data.symbol) {
                 return res.status(400).json({
@@ -25,20 +24,24 @@ export default function handler(req, res) {
             }
             
             const symbol = data.symbol;
+            const timeframe = data.timeframe || 'M1';
             
-            // Add timestamp
+            // Add metadata
             data.last_update = Date.now();
             data.received_at = new Date().toISOString();
+            data.timeframe = timeframe;
             
             // Save to storage
             chartStorage[symbol] = data;
             
-            console.log(`💾 Chart saved: ${symbol}, points: ${data.data?.length || 0}`);
+            const candleCount = data.data?.length || 0;
+            console.log(`📈 Chart saved: ${symbol} (${timeframe}), ${candleCount} candles`);
             
             return res.status(200).json({
                 status: 'ok',
                 symbol: symbol,
-                data_points: data.data?.length || 0,
+                timeframe: timeframe,
+                data_points: candleCount,
                 message: 'Chart data saved successfully'
             });
             
@@ -51,20 +54,21 @@ export default function handler(req, res) {
         }
     }
     
-    // GET - Return chart data for frontend
+    // === GET: Return chart data for frontend ===
     if (req.method === 'GET') {
         try {
             const symbol = req.query.symbol || '';
+            const timeframe = req.query.timeframe || 'M1';
             
-            console.log('📊 Requesting chart for:', symbol || 'any');
+            console.log(`📊 Requesting chart: ${symbol || 'any'}, TF: ${timeframe}`);
             
-            // Clean old data (> 5 minutes)
+            // Clean old data (> 10 minutes)
             const now = Date.now();
             let cleaned = 0;
             
             for (const sym in chartStorage) {
                 const lastUpdate = chartStorage[sym]?.last_update || 0;
-                if (now - lastUpdate > 300000) { // 5 minutes
+                if (now - lastUpdate > 600000) { // 10 minutes
                     delete chartStorage[sym];
                     cleaned++;
                 }
@@ -74,7 +78,7 @@ export default function handler(req, res) {
                 console.log(`🧹 Cleaned ${cleaned} old chart(s)`);
             }
             
-            // Find chart data
+            // Find matching chart
             let targetSymbol = symbol;
             let chartData = null;
             
@@ -87,14 +91,16 @@ export default function handler(req, res) {
             }
             
             if (chartData) {
-                console.log(`✅ Returning chart for: ${targetSymbol}, points: ${chartData.data?.length || 0}`);
+                const candleCount = chartData.data?.length || 0;
+                console.log(`✅ Returning chart: ${targetSymbol}, ${candleCount} candles`);
                 
                 return res.status(200).json({
                     status: 'ok',
                     symbol: targetSymbol,
+                    timeframe: chartData.timeframe || 'M1',
                     data: chartData.data || [],
                     last_update: chartData.last_update,
-                    age_seconds: Math.floor((now - chartData.last_update) / 1000)
+                    candle_count: candleCount
                 });
             } else {
                 console.log('⚠️ No chart data available');
