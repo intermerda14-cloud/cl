@@ -11,197 +11,509 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
-            font-family: 'Segoe UI', Tahoma, sans-serif; 
-            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
-            color: #fff; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #0c0c14 0%, #121220 50%, #0a0a14 100%);
+            color: #e0e0ff; 
             min-height: 100vh;
+            overflow-x: hidden;
         }
         .header {
-            background: rgba(0,0,0,0.3);
-            padding: 15px 30px;
+            background: rgba(10, 10, 20, 0.9);
+            padding: 20px 40px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            border-bottom: 2px solid rgba(0, 255, 136, 0.3);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
         }
-        .logo { font-size: 24px; font-weight: bold; color: #ffd700; }
-        .logo span { color: #00ff88; }
-        .status-bar { display: flex; gap: 20px; flex-wrap: wrap; }
+        .logo { 
+            font-size: 28px; 
+            font-weight: 800; 
+            background: linear-gradient(90deg, #ffd700, #ffed4e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 2px 10px rgba(255, 215, 0, 0.3);
+        }
+        .logo span { 
+            background: linear-gradient(90deg, #00ff88, #00cc66);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .status-bar { 
+            display: flex; 
+            gap: 25px; 
+            flex-wrap: wrap;
+            align-items: center;
+        }
         .status-item {
-            background: rgba(255,255,255,0.1);
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 14px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 12px 24px;
+            border-radius: 15px;
+            font-size: 15px;
+            font-weight: 500;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 140px;
         }
-        .status-item.connected { border: 1px solid #00ff88; }
-        .status-item.disconnected { border: 1px solid #ff4444; }
+        .status-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.1);
+        }
+        .status-item.connected { 
+            border: 2px solid rgba(0, 255, 136, 0.5);
+            background: rgba(0, 255, 136, 0.05);
+        }
+        .status-item.disconnected { 
+            border: 2px solid rgba(255, 68, 68, 0.5);
+            background: rgba(255, 68, 68, 0.05);
+        }
         .status-item .dot { 
             display: inline-block; 
-            width: 8px; height: 8px; 
+            width: 12px; 
+            height: 12px; 
             border-radius: 50%; 
-            margin-right: 6px;
             animation: pulse 2s infinite;
+            box-shadow: 0 0 10px currentColor;
         }
-        .dot.green { background: #00ff88; }
-        .dot.red { background: #ff4444; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .dot.green { 
+            background: #00ff88;
+            box-shadow: 0 0 15px #00ff88;
+        }
+        .dot.red { 
+            background: #ff4444;
+            box-shadow: 0 0 15px #ff4444;
+        }
+        @keyframes pulse { 
+            0%, 100% { opacity: 1; } 
+            50% { opacity: 0.3; } 
+        }
         .container { 
             display: grid; 
-            grid-template-columns: 1fr 350px; 
-            gap: 20px; 
-            padding: 20px; 
-            max-width: 1800px;
+            grid-template-columns: 1fr 380px; 
+            gap: 25px; 
+            padding: 30px; 
+            max-width: 2000px;
             margin: 0 auto;
         }
         .chart-section {
-            background: rgba(0,0,0,0.3);
-            border-radius: 12px;
-            padding: 20px;
-            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(15, 15, 25, 0.7);
+            border-radius: 20px;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
         }
         .chart-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 15px;
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 20px;
+        }
+        .symbol-title { 
+            font-size: 26px; 
+            font-weight: 700; 
+        }
+        .symbol-title .price { 
+            color: #00ff88; 
+            margin-left: 20px;
+            font-size: 28px;
+            font-weight: 800;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
         }
         .chart-controls {
             display: flex;
-            gap: 10px;
+            gap: 15px;
             align-items: center;
+            flex-wrap: wrap;
         }
-        .symbol-title { font-size: 20px; font-weight: bold; }
-        .symbol-title .price { color: #00ff88; margin-left: 15px; }
-        .chart-container { height: 500px; position: relative; }
+        select {
+            background: linear-gradient(145deg, #1a1a2e, #0f0f1a);
+            color: #e0e0ff;
+            border: 2px solid #00ff88;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            min-width: 100px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0, 255, 136, 0.1);
+        }
+        select:hover {
+            background: linear-gradient(145deg, #00ff88, #00cc66);
+            color: #000;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 255, 136, 0.3);
+        }
+        button {
+            background: linear-gradient(145deg, #ffd700, #ffcc00);
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 14px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.2);
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 215, 0, 0.4);
+            background: linear-gradient(145deg, #ffed4e, #ffd700);
+        }
+        .chart-container { 
+            height: 600px; 
+            position: relative;
+            background: rgba(10, 10, 20, 0.5);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
         .waiting {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 300px;
+            height: 400px;
             color: #ffd700;
             text-align: center;
-            padding: 20px;
+            padding: 40px;
+            background: rgba(15, 15, 25, 0.7);
+            border-radius: 20px;
+            border: 2px dashed rgba(255, 215, 0, 0.3);
         }
-        .waiting .icon { font-size: 48px; margin-bottom: 20px; }
+        .waiting .icon { 
+            font-size: 80px; 
+            margin-bottom: 30px;
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
         .info-box {
-            background: rgba(0,0,0,0.5);
-            border-radius: 8px;
-            padding: 15px;
-            margin-top: 15px;
-            font-size: 12px;
+            background: linear-gradient(145deg, rgba(0, 255, 136, 0.1), rgba(255, 215, 0, 0.05));
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 25px;
+            font-size: 14px;
             text-align: left;
-            max-width: 600px;
-            border-left: 3px solid #ffd700;
+            max-width: 700px;
+            border-left: 5px solid #00ff88;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
         }
-        select, button {
-            background: rgba(255,255,255,0.1);
-            color: white;
-            border: 1px solid #00ff88;
-            padding: 5px 10px;
-            border-radius: 4px;
-            cursor: pointer;
+        .sidebar { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 20px; 
         }
-        select:hover, button:hover {
-            background: rgba(0,255,136,0.2);
-        }
-        .sidebar { display: flex; flex-direction: column; gap: 15px; }
         .card {
-            background: rgba(0,0,0,0.3);
-            border-radius: 12px;
-            padding: 20px;
-            border: 1px solid rgba(255,255,255,0.1);
+            background: linear-gradient(145deg, rgba(15, 15, 25, 0.8), rgba(10, 10, 20, 0.9));
+            border-radius: 20px;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 255, 136, 0.1);
+            border-color: rgba(0, 255, 136, 0.3);
         }
         .card-title {
-            font-size: 12px;
+            font-size: 13px;
             text-transform: uppercase;
             color: #888;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
+            letter-spacing: 1px;
+            font-weight: 600;
         }
-        .equity { font-size: 36px; font-weight: bold; margin-bottom: 15px; }
-        .equity.positive { color: #00ff88; }
-        .equity.negative { color: #ff4444; }
+        .card-title:before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: #00ff88;
+            border-radius: 2px;
+        }
+        .equity { 
+            font-size: 48px; 
+            font-weight: 800; 
+            margin-bottom: 20px;
+            background: linear-gradient(90deg, #00ff88, #ffd700);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 2px 10px rgba(0, 255, 136, 0.3);
+        }
         .account-row {
             display: flex;
             justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            align-items: center;
         }
         .account-row:last-child { border: none; }
-        .account-label { color: #888; }
-        .account-value.positive { color: #00ff88; }
-        .account-value.negative { color: #ff4444; }
-        .symbol-list { display: flex; flex-direction: column; gap: 10px; }
+        .account-label { 
+            color: #aaa; 
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .account-value { 
+            font-size: 16px;
+            font-weight: 600;
+        }
+        .account-value.positive { 
+            color: #00ff88;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+        }
+        .account-value.negative { 
+            color: #ff4444;
+            text-shadow: 0 0 10px rgba(255, 68, 68, 0.3);
+        }
+        .symbol-list { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 12px; 
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        .symbol-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        .symbol-list::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+        }
+        .symbol-list::-webkit-scrollbar-thumb {
+            background: #00ff88;
+            border-radius: 3px;
+        }
         .symbol-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 8px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.3s;
+            border: 1px solid transparent;
         }
-        .symbol-item:hover { background: rgba(255,255,255,0.1); }
-        .symbol-item.active { border: 1px solid #ffd700; }
-        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .stat-item { text-align: center; }
-        .stat-value { font-size: 24px; font-weight: bold; color: #00ff88; }
-        .stat-label { font-size: 11px; color: #888; margin-top: 5px; }
-        .tier-row { display: flex; justify-content: space-around; margin-top: 15px; }
+        .symbol-item:hover { 
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateX(5px);
+            border-color: rgba(255, 215, 0, 0.3);
+        }
+        .symbol-item.active { 
+            background: rgba(0, 255, 136, 0.1);
+            border: 2px solid #00ff88;
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.2);
+        }
+        .stats-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 20px; 
+        }
+        .stat-item { 
+            text-align: center;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 20px;
+            border-radius: 15px;
+            transition: all 0.3s;
+        }
+        .stat-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateY(-5px);
+        }
+        .stat-value { 
+            font-size: 32px; 
+            font-weight: 800; 
+            color: #00ff88;
+            margin-bottom: 5px;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+        }
+        .stat-label { 
+            font-size: 12px; 
+            color: #888; 
+            margin-top: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+        .tier-row { 
+            display: flex; 
+            justify-content: space-around; 
+            margin-top: 20px;
+            gap: 10px;
+        }
         .tier-badge {
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 12px;
-            background: rgba(255,255,255,0.1);
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 13px;
+            font-weight: 700;
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            color: #aaa;
+            flex: 1;
+            text-align: center;
+            transition: all 0.3s;
         }
-        .tier-badge.active { background: #00ff88; color: #000; }
-        .ml-confidence { text-align: center; padding: 20px; }
-        .ml-value { font-size: 48px; font-weight: bold; }
-        .ml-value.high { color: #00ff88; }
-        .ml-value.medium { color: #ffd700; }
-        .ml-value.low { color: #ff4444; }
-        .ml-label { color: #888; margin-top: 10px; }
-        .footer { text-align: center; padding: 20px; color: #555; font-size: 12px; }
+        .tier-badge.active { 
+            background: linear-gradient(145deg, #00ff88, #00cc66);
+            color: #000;
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.3);
+        }
+        .ml-confidence { 
+            text-align: center; 
+            padding: 30px; 
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 20px;
+            margin: 20px 0;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+        .ml-value { 
+            font-size: 72px; 
+            font-weight: 900; 
+            margin-bottom: 10px;
+            text-shadow: 0 5px 20px currentColor;
+        }
+        .ml-value.high { 
+            color: #00ff88;
+            animation: glow-green 2s infinite alternate;
+        }
+        .ml-value.medium { 
+            color: #ffd700;
+            animation: glow-yellow 2s infinite alternate;
+        }
+        .ml-value.low { 
+            color: #ff4444;
+            animation: glow-red 2s infinite alternate;
+        }
+        @keyframes glow-green {
+            0% { text-shadow: 0 0 20px #00ff88; }
+            100% { text-shadow: 0 0 40px #00ff88, 0 0 60px #00ff88; }
+        }
+        @keyframes glow-yellow {
+            0% { text-shadow: 0 0 20px #ffd700; }
+            100% { text-shadow: 0 0 40px #ffd700, 0 0 60px #ffd700; }
+        }
+        @keyframes glow-red {
+            0% { text-shadow: 0 0 20px #ff4444; }
+            100% { text-shadow: 0 0 40px #ff4444, 0 0 60px #ff4444; }
+        }
+        .ml-label { 
+            color: #aaa; 
+            margin-top: 15px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .footer { 
+            text-align: center; 
+            padding: 30px; 
+            color: #666; 
+            font-size: 13px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            margin-top: 40px;
+            font-weight: 500;
+            letter-spacing: 1px;
+        }
         .test-btn {
-            background: #00ff88;
+            background: linear-gradient(145deg, #00ff88, #00cc66);
             color: #000;
             border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
+            padding: 15px 30px;
+            border-radius: 12px;
             cursor: pointer;
-            font-weight: bold;
-            margin-top: 15px;
+            font-weight: 800;
+            font-size: 15px;
+            margin-top: 20px;
+            transition: all 0.3s;
+            box-shadow: 0 5px 20px rgba(0, 255, 136, 0.3);
         }
-        .test-btn:hover { background: #00cc66; }
-        @media (max-width: 1200px) {
-            .container { grid-template-columns: 1fr; }
-            .sidebar { display: grid; grid-template-columns: repeat(2, 1fr); }
+        .test-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 255, 136, 0.5);
+            background: linear-gradient(145deg, #00ffaa, #00ff88);
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 1400px) {
+            .container { 
+                grid-template-columns: 1fr; 
+                padding: 20px;
+            }
+            .sidebar { 
+                display: grid; 
+                grid-template-columns: repeat(2, 1fr); 
+            }
+            .chart-container { height: 500px; }
         }
         @media (max-width: 768px) {
-            .sidebar { grid-template-columns: 1fr; }
-            .header { flex-direction: column; gap: 15px; }
-            .chart-header { flex-direction: column; align-items: flex-start; }
-            .chart-controls { width: 100%; justify-content: space-between; }
+            .header { 
+                flex-direction: column; 
+                gap: 20px; 
+                padding: 20px;
+                text-align: center;
+            }
+            .status-bar { 
+                justify-content: center; 
+                gap: 15px;
+            }
+            .status-item { 
+                min-width: 120px; 
+                padding: 10px 15px;
+            }
+            .sidebar { 
+                grid-template-columns: 1fr; 
+            }
+            .chart-header { 
+                flex-direction: column; 
+                align-items: flex-start; 
+                gap: 15px;
+            }
+            .chart-controls { 
+                width: 100%; 
+                justify-content: space-between;
+                flex-wrap: wrap;
+            }
+            .equity { font-size: 36px; }
+            .ml-value { font-size: 56px; }
+        }
+        
+        /* Chart canvas styling */
+        canvas {
+            border-radius: 12px;
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <div class="logo">🤖 BB SCALPER <span>V4.2</span></div>
+        <div class="logo">🚀 BB SCALPER <span>V4.2 PRO</span></div>
         <div class="status-bar">
             <div class="status-item" id="connectionBox">
                 <span class="dot" id="statusDot"></span>
-                <span id="connectionStatus">Connecting...</span>
+                <span id="connectionStatus">INITIALIZING</span>
             </div>
-            <div class="status-item">📊 Active: <span id="activeCount">0</span></div>
-            <div class="status-item">💰 Equity: <span id="headerEquity">$0</span></div>
-            <div class="status-item">🕐 <span id="serverTime">--:--:--</span></div>
+            <div class="status-item">📊 ACTIVE: <span id="activeCount">0</span></div>
+            <div class="status-item">💰 EQUITY: <span id="headerEquity">$0</span></div>
+            <div class="status-item">⚡ <span id="serverTime">--:--:--</span></div>
         </div>
     </div>
     
@@ -220,11 +532,14 @@
                         <option value="M30" selected>M30</option>
                         <option value="H1">H1</option>
                         <option value="H4">H4</option>
+                        <option value="D1">D1</option>
                     </select>
-                    <button onclick="refreshChart()">🔄 Refresh</button>
-                    <span id="chartSpread">Spread: --</span>
-                    <span id="chartVol">Vol: --</span>
-                    <span id="chartTime">--:--:--</span>
+                    <button onclick="refreshChart()">🔄 REFRESH CHART</button>
+                    <div style="display: flex; gap: 15px; align-items: center;">
+                        <span id="chartSpread" style="color: #aaa;">SPREAD: --</span>
+                        <span id="chartVol" style="color: #ffd700;">VOL: --</span>
+                        <span id="chartTime" style="color: #00ff88;">--:--:--</span>
+                    </div>
                 </div>
             </div>
             
@@ -239,7 +554,7 @@
         
         <div class="sidebar">
             <div class="card">
-                <div class="card-title">💰 Account Summary</div>
+                <div class="card-title">💰 ACCOUNT SUMMARY</div>
                 <div class="equity" id="equity">$0.00</div>
                 <div class="account-row">
                     <span class="account-label">Balance</span>
@@ -250,7 +565,7 @@
                     <span class="account-value" id="dailyPnl">$0.00</span>
                 </div>
                 <div class="account-row">
-                    <span class="account-label">Floating</span>
+                    <span class="account-label">Floating P/L</span>
                     <span class="account-value" id="floating">$0.00</span>
                 </div>
                 <div class="account-row">
@@ -260,14 +575,16 @@
             </div>
             
             <div class="card">
-                <div class="card-title">📊 Active Symbols</div>
+                <div class="card-title">📊 ACTIVE SYMBOLS</div>
                 <div class="symbol-list" id="symbolList">
-                    <div style="color: #888; text-align: center; padding: 20px;">No active symbols</div>
+                    <div style="color: #666; text-align: center; padding: 30px; font-style: italic;">
+                        No active symbols detected
+                    </div>
                 </div>
             </div>
             
             <div class="card">
-                <div class="card-title">📈 Performance</div>
+                <div class="card-title">📈 PERFORMANCE METRICS</div>
                 <div class="stats-grid">
                     <div class="stat-item">
                         <div class="stat-value" id="totalTrades">0</div>
@@ -289,7 +606,7 @@
             </div>
             
             <div class="card">
-                <div class="card-title">🎯 Stats & Tiers</div>
+                <div class="card-title">🎯 ADVANCED STATS</div>
                 <div class="account-row">
                     <span class="account-label">Sharpe Ratio</span>
                     <span class="account-value" id="sharpe">0.00</span>
@@ -310,7 +627,7 @@
             </div>
             
             <div class="card">
-                <div class="card-title">🤖 ML Engine</div>
+                <div class="card-title">🤖 ML ENGINE ANALYSIS</div>
                 <div class="ml-confidence">
                     <div class="ml-value" id="mlConfidence">--%</div>
                     <div class="ml-label">Confidence Score</div>
@@ -332,7 +649,7 @@
     </div>
     
     <div class="footer">
-        BB Scalper V4.2 Ultimate Pro | Vercel Edition | Auto-refresh 3s | Candlestick Charts
+        BB SCALPER V4.2 ULTIMATE PRO EDITION | VERCEL DEPLOYMENT | REAL-TIME MONITORING | © 2024
     </div>
     
     <script>
@@ -345,9 +662,19 @@
         let isConnected = false;
         let lastChartUpdate = 0;
         
+        // Chart styling configuration
+        const CHART_CONFIG = {
+            bullishColor: '#00ff88',
+            bearishColor: '#ff4444',
+            gridColor: 'rgba(255, 255, 255, 0.05)',
+            textColor: '#aaa',
+            bgColor: 'rgba(10, 10, 20, 0.3)',
+            borderColor: 'rgba(255, 255, 255, 0.1)'
+        };
+        
         // Start when page loads
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 BB Scalper V4.2 Dashboard Starting...');
+            console.log('🚀 BB Scalper V4.2 Dashboard - Professional Edition');
             
             // Update server time
             updateServerTime();
@@ -370,7 +697,13 @@
         });
         
         function updateServerTime() {
-            const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+            const now = new Date();
+            const time = now.toLocaleTimeString('en-US', { 
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
             document.getElementById('serverTime').textContent = time;
             document.getElementById('chartTime').textContent = time;
         }
@@ -385,30 +718,23 @@
         // ========== MAIN DATA FETCH ==========
         async function fetchData() {
             try {
-                console.log('🔄 Fetching EA data...');
-                
                 const response = await fetch(API_BASE + 'data');
                 const data = await response.json();
                 
-                console.log('📊 Server response:', data);
-                
                 if (data.status === 'ok') {
                     if (data.active_count > 0) {
-                        console.log('✅ EA data found! Symbols:', Object.keys(data.symbols));
                         updateDashboard(data);
                         setConnected();
                         
-                        // Fetch chart data jika belum ada atau perlu update
+                        // Fetch chart data jika perlu update
                         if (currentSymbol && (!chart || Date.now() - lastChartUpdate > 10000)) {
                             fetchChartData(currentSymbol);
                         }
                     } else {
-                        console.log('⏳ Waiting for EA data...');
                         showWaitingMessage('no_data');
                         setDisconnected();
                     }
                 } else {
-                    console.error('Server error:', data.message);
                     showWaitingMessage('error');
                     setDisconnected();
                 }
@@ -425,20 +751,15 @@
             if (!symbol) return;
             
             const timeframe = document.getElementById('timeframeSelect').value;
-            console.log(`📈 Fetching ${timeframe} chart for:`, symbol);
             
             try {
                 const response = await fetch(`${API_BASE}chart?symbol=${symbol}&timeframe=${timeframe}`);
                 const data = await response.json();
                 
-                console.log('📊 Chart response:', data);
-                
                 if (data.status === 'ok' && data.data && data.data.length > 0) {
-                    console.log(`✅ Found ${data.data.length} candles for ${data.timeframe}`);
                     updateChart(data.data, symbol, data.timeframe);
                     lastChartUpdate = Date.now();
                 } else {
-                    console.log('⚠️ No chart data, creating placeholder');
                     createPlaceholderChart(symbol);
                 }
                 
@@ -448,86 +769,7 @@
             }
         }
         
-        // ========== CREATE PLACEHOLDER CHART ==========
-        function createPlaceholderChart(symbol) {
-            const ctx = document.getElementById('priceChart').getContext('2d');
-            
-            if (chart) {
-                chart.destroy();
-            }
-            
-            // Create placeholder candlestick data
-            const placeholderData = [];
-            const now = Date.now();
-            let price = 100;
-            
-            for (let i = 60; i >= 0; i--) {
-                const time = new Date(now - i * 60000);
-                const open = price;
-                const high = open + Math.random() * 2;
-                const low = open - Math.random() * 2;
-                const close = low + Math.random() * (high - low);
-                
-                placeholderData.push({
-                    x: time,
-                    o: open,
-                    h: high,
-                    l: low,
-                    c: close
-                });
-                
-                price = close;
-            }
-            
-            chart = new Chart(ctx, {
-                type: 'candlestick',
-                data: {
-                    datasets: [{
-                        label: `${symbol} - Waiting for EA Chart Data`,
-                        data: placeholderData,
-                        color: {
-                            up: '#00ff88',
-                            down: '#ff4444',
-                            unchanged: '#999'
-                        },
-                        borderColor: '#333',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        title: {
-                            display: true,
-                            text: '⚡ Waiting for EA Candlestick Data',
-                            color: '#ffd700',
-                            font: { size: 14 }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            type: 'time',
-                            time: { unit: 'minute' },
-                            grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { color: '#888', maxTicksLimit: 8 }
-                        },
-                        y: {
-                            grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { 
-                                color: '#888',
-                                callback: function(value) {
-                                    return '$' + value.toFixed(2);
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-        
-        // ========== UPDATE CANDLESTICK CHART ==========
+        // ========== CREATE PROFESSIONAL CANDLESTICK CHART ==========
         function updateChart(chartData, symbol, timeframe) {
             if (!chartData || !Array.isArray(chartData) || chartData.length === 0) {
                 createPlaceholderChart(symbol);
@@ -549,75 +791,131 @@
             document.getElementById('timeframeSelect').value = timeframe || 'M1';
             
             if (chart) {
-                chart.data.datasets[0].data = financialData;
-                chart.data.datasets[0].label = `${symbol} (${timeframe})`;
-                chart.update('none');
-            } else {
-                // Create new candlestick chart
-                chart = new Chart(ctx, {
-                    type: 'candlestick',
-                    data: {
-                        datasets: [{
-                            label: `${symbol} (${timeframe})`,
-                            data: financialData,
-                            color: {
-                                up: '#00ff88',
-                                down: '#ff4444',
-                                unchanged: '#999'
-                            },
-                            borderColor: '#333',
-                            borderWidth: 1
-                        }]
+                chart.destroy();
+            }
+            
+            // Create professional candlestick chart
+            chart = new Chart(ctx, {
+                type: 'candlestick',
+                data: {
+                    datasets: [{
+                        label: `${symbol} • ${timeframe}`,
+                        data: financialData,
+                        color: {
+                            up: CHART_CONFIG.bullishColor,
+                            down: CHART_CONFIG.bearishColor,
+                            unchanged: '#888'
+                        },
+                        borderColor: CHART_CONFIG.borderColor,
+                        borderWidth: 1,
+                        backgroundColor: (ctx) => {
+                            const item = ctx.raw;
+                            return item.c >= item.o ? 
+                                `${CHART_CONFIG.bullishColor}40` : 
+                                `${CHART_CONFIG.bearishColor}40`;
+                        }
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 0
                     },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        const point = context.raw;
-                                        return [
-                                            `O: $${point.o.toFixed(2)}`,
-                                            `H: $${point.h.toFixed(2)}`,
-                                            `L: $${point.l.toFixed(2)}`,
-                                            `C: $${point.c.toFixed(2)}`
-                                        ];
-                                    }
+                    plugins: {
+                        legend: { 
+                            display: true,
+                            labels: {
+                                color: CHART_CONFIG.textColor,
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
                                 }
                             }
                         },
-                        scales: {
-                            x: {
-                                type: 'time',
-                                time: {
-                                    unit: getTimeUnit(timeframe),
-                                    displayFormats: {
-                                        minute: 'HH:mm',
-                                        hour: 'MM-dd HH:mm',
-                                        day: 'MM-dd'
-                                    }
-                                },
-                                grid: { color: 'rgba(255,255,255,0.05)' },
-                                ticks: { color: '#888', maxTicksLimit: 10 }
-                            },
-                            y: {
-                                position: 'right',
-                                grid: { color: 'rgba(255,255,255,0.05)' },
-                                ticks: { 
-                                    color: '#888',
-                                    callback: function(value) {
-                                        return '$' + value.toFixed(2);
-                                    }
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 15, 25, 0.95)',
+                            titleColor: '#fff',
+                            bodyColor: CHART_CONFIG.textColor,
+                            borderColor: CHART_CONFIG.bullishColor,
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            displayColors: false,
+                            callbacks: {
+                                label: function(context) {
+                                    const point = context.raw;
+                                    const change = ((point.c - point.o) / point.o * 100).toFixed(2);
+                                    const changeColor = point.c >= point.o ? 
+                                        CHART_CONFIG.bullishColor : 
+                                        CHART_CONFIG.bearishColor;
+                                    
+                                    return [
+                                        `OPEN: $${point.o.toFixed(2)}`,
+                                        `HIGH: $${point.h.toFixed(2)}`,
+                                        `LOW: $${point.l.toFixed(2)}`,
+                                        `CLOSE: $${point.c.toFixed(2)}`,
+                                        `CHANGE: <span style="color:${changeColor}">${change}%</span>`
+                                    ];
                                 }
                             }
                         }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: getTimeUnit(timeframe),
+                                displayFormats: {
+                                    minute: 'HH:mm',
+                                    hour: 'MM-dd HH:mm',
+                                    day: 'MM-dd'
+                                }
+                            },
+                            grid: {
+                                color: CHART_CONFIG.gridColor,
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: CHART_CONFIG.textColor,
+                                font: {
+                                    size: 11,
+                                    weight: '500'
+                                },
+                                maxTicksLimit: 12
+                            }
+                        },
+                        y: {
+                            position: 'right',
+                            grid: {
+                                color: CHART_CONFIG.gridColor,
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: CHART_CONFIG.textColor,
+                                font: {
+                                    size: 12,
+                                    weight: '600'
+                                },
+                                callback: function(value) {
+                                    return '$' + value.toFixed(2);
+                                },
+                                padding: 10
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    elements: {
+                        point: {
+                            radius: 0
+                        }
                     }
-                });
-            }
+                }
+            });
             
-            console.log(`📈 Candlestick chart updated: ${financialData.length} candles (${timeframe})`);
+            console.log(`📈 Professional chart rendered: ${financialData.length} candles (${timeframe})`);
         }
         
         function getTimeUnit(timeframe) {
@@ -628,6 +926,7 @@
                 case 'M30': return 'minute';
                 case 'H1': return 'hour';
                 case 'H4': return 'hour';
+                case 'D1': return 'day';
                 default: return 'minute';
             }
         }
@@ -640,15 +939,18 @@
             switch(type) {
                 case 'initial':
                     html = `
-                        <div class="icon">⚡</div>
-                        <h2>BB Scalper V4.2 Dashboard</h2>
-                        <p>Initializing real-time monitoring...</p>
+                        <div class="icon">🚀</div>
+                        <h2 style="font-size: 32px; margin-bottom: 20px;">BB SCALPER V4.2 PRO</h2>
+                        <p style="font-size: 18px; color: #aaa; margin-bottom: 30px;">
+                            Professional Trading Dashboard
+                        </p>
                         <div class="info-box">
-                            <strong>Features Ready:</strong><br>
-                            • Real-time candlestick charts<br>
-                            • Multiple timeframe support<br>
-                            • ML Engine monitoring<br>
-                            • Performance analytics
+                            <strong style="color: #00ff88; font-size: 16px;">SYSTEM STATUS</strong><br><br>
+                            • Real-time candlestick charts ✓<br>
+                            • Multi-timeframe analysis ✓<br>
+                            • ML Engine monitoring ✓<br>
+                            • Performance analytics ✓<br>
+                            • Professional UI/UX ✓
                         </div>
                     `;
                     break;
@@ -656,40 +958,37 @@
                 case 'no_data':
                     html = `
                         <div class="icon">📡</div>
-                        <h2>Server Ready - Waiting for EA</h2>
-                        <p>API server is online, waiting for EA to send data.</p>
+                        <h2 style="font-size: 28px;">SERVER ONLINE</h2>
+                        <p style="font-size: 16px; color: #aaa; margin-bottom: 20px;">
+                            Waiting for EA connection...
+                        </p>
                         
                         <div class="info-box">
-                            <strong>Expected Data from EA:</strong><br>
-                            • Symbol data to: /api/data<br>
-                            • Candlestick data to: /api/chart<br>
-                            • Timeframe: M1, M5, M15, M30, H1, H4<br>
-                            • Auto-refresh every 3 seconds
+                            <strong style="color: #ffd700;">CONNECTION CHECKLIST</strong><br><br>
+                            1. EA attached to chart ✓<br>
+                            2. WebMonitor enabled ✓<br>
+                            3. Host: cl-ten-woad.vercel.app ✓<br>
+                            4. Data transmission pending...
                         </div>
                         
                         <button class="test-btn" onclick="testConnection()">
-                            🔄 Test Server Connection
+                            🔄 TEST CONNECTION
                         </button>
                     `;
                     break;
                     
                 case 'error':
                     html = `
-                        <div class="icon">❌</div>
-                        <h2>Connection Error</h2>
-                        <p>Cannot reach server. Check internet connection.</p>
+                        <div class="icon">⚠️</div>
+                        <h2 style="font-size: 28px;">CONNECTION ERROR</h2>
+                        <p style="font-size: 16px; color: #ff4444; margin-bottom: 30px;">
+                            Cannot establish connection to server
+                        </p>
                         <button class="test-btn" onclick="location.reload()">
-                            🔄 Reload Dashboard
+                            🔄 RELOAD DASHBOARD
                         </button>
                     `;
                     break;
-                    
-                default:
-                    html = `
-                        <div class="icon">🤖</div>
-                        <h2>BB Scalper V4.2 Dashboard</h2>
-                        <p>Real-time trading monitor with candlestick charts</p>
-                    `;
             }
             
             waitingDiv.innerHTML = html;
@@ -701,8 +1000,8 @@
             const waitingDiv = document.getElementById('waitingState');
             waitingDiv.innerHTML = `
                 <div class="icon">🔍</div>
-                <h2>Testing Connection...</h2>
-                <p>Checking server status...</p>
+                <h2>TESTING CONNECTION...</h2>
+                <p style="color: #aaa;">Please wait...</p>
             `;
             
             try {
@@ -711,25 +1010,27 @@
                 
                 waitingDiv.innerHTML = `
                     <div class="icon">✅</div>
-                    <h2>Server Connection OK!</h2>
+                    <h2 style="color: #00ff88;">CONNECTION SUCCESSFUL!</h2>
                     <p>${data.message}</p>
                     <div class="info-box">
-                        <strong>Server Status:</strong><br>
-                        • Status: Online<br>
+                        <strong>SERVER STATUS</strong><br><br>
+                        • Status: <span style="color: #00ff88;">ONLINE</span><br>
                         • Version: ${data.version}<br>
                         • Time: ${new Date().toLocaleTimeString()}<br>
                         • Active Symbols: ${data.active_symbols || 0}
                     </div>
-                    <p>Waiting for EA to send trading data...</p>
+                    <p style="color: #aaa; margin-top: 20px;">
+                        Waiting for EA to send trading data...
+                    </p>
                 `;
                 
             } catch (error) {
                 waitingDiv.innerHTML = `
                     <div class="icon">❌</div>
-                    <h2>Connection Test Failed</h2>
+                    <h2 style="color: #ff4444;">CONNECTION FAILED</h2>
                     <p>Error: ${error.message}</p>
                     <button class="test-btn" onclick="location.reload()">
-                        🔄 Retry
+                        🔄 RETRY
                     </button>
                 `;
             }
@@ -743,39 +1044,31 @@
             document.getElementById('activeCount').textContent = activeCount;
             
             if (activeCount > 0) {
-                // Hide waiting, show chart
                 document.getElementById('waitingState').style.display = 'none';
                 document.getElementById('chartContainer').style.display = 'block';
                 
-                // Select first symbol if none selected
                 if (!currentSymbol || !symbols[currentSymbol]) {
                     currentSymbol = symbolKeys[0];
-                    console.log('🔍 Selected symbol:', currentSymbol);
                 }
                 
-                // Update symbol data
                 if (currentSymbol && symbols[currentSymbol]) {
-                    console.log('📊 Updating UI for:', currentSymbol);
                     updateSymbolData(symbols[currentSymbol]);
                 }
                 
-                // Update symbol list
                 updateSymbolList(symbols);
-                
-                console.log('✅ Dashboard updated successfully!');
             } else {
                 showWaitingMessage('no_data');
             }
         }
         
         function updateSymbolData(d) {
-            // === BASIC INFO ===
+            // Basic info
             document.getElementById('chartSymbol').textContent = d.symbol || '--';
             document.getElementById('chartPrice').textContent = '$' + (d.bid || 0).toFixed(2);
-            document.getElementById('chartSpread').textContent = 'Spread: ' + (d.spread || 0).toFixed(1);
-            document.getElementById('chartVol').textContent = 'Vol: ' + (d.volatility || 'MEDIUM');
+            document.getElementById('chartSpread').textContent = 'SPREAD: ' + (d.spread || 0).toFixed(1);
+            document.getElementById('chartVol').textContent = 'VOL: ' + (d.volatility || 'MEDIUM');
             
-            // === ACCOUNT INFO ===
+            // Account info
             const equity = parseFloat(d.equity) || 0;
             const dailyPnl = parseFloat(d.daily_pnl) || 0;
             const floating = parseFloat(d.floating) || 0;
@@ -785,26 +1078,21 @@
             document.getElementById('headerEquity').textContent = '$' + equity.toFixed(0);
             document.getElementById('balance').textContent = '$' + (parseFloat(d.balance) || 0).toFixed(2);
             
-            // Daily P/L
+            // P/L with colors
             const pnlEl = document.getElementById('dailyPnl');
             pnlEl.textContent = (dailyPnl >= 0 ? '+' : '') + '$' + dailyPnl.toFixed(2);
             pnlEl.className = 'account-value ' + (dailyPnl >= 0 ? 'positive' : 'negative');
             
-            // Floating P/L
             const floatEl = document.getElementById('floating');
             floatEl.textContent = (floating >= 0 ? '+' : '') + '$' + floating.toFixed(2);
             floatEl.className = 'account-value ' + (floating >= 0 ? 'positive' : 'negative');
             
-            // Commission
+            // Other fields
             document.getElementById('commission').textContent = '$' + (parseFloat(d.commission) || 0).toFixed(2);
-            
-            // === PERFORMANCE METRICS ===
             document.getElementById('totalTrades').textContent = d.total_trades || 0;
             document.getElementById('winRate').textContent = (d.win_rate || 0).toFixed(1) + '%';
             document.getElementById('wins').textContent = d.wins || 0;
             document.getElementById('losses').textContent = d.losses || 0;
-            
-            // === STATS & TIERS ===
             document.getElementById('sharpe').textContent = (d.sharpe || 0).toFixed(2);
             document.getElementById('profitFactor').textContent = (d.profit_factor || 0).toFixed(2);
             document.getElementById('expectancy').textContent = '$' + (d.expectancy || 0).toFixed(2);
@@ -812,7 +1100,7 @@
             document.getElementById('tier2').textContent = 'T2: ' + (d.tier2 || 0);
             document.getElementById('tier3').textContent = 'T3: ' + (d.tier3 || 0);
             
-            // === ML ENGINE ===
+            // ML Engine
             const mlConf = parseFloat(d.ml_confidence) || 0;
             const mlEl = document.getElementById('mlConfidence');
             mlEl.textContent = mlConf.toFixed(0) + '%';
@@ -828,28 +1116,33 @@
             const keys = Object.keys(symbols);
             
             if (keys.length === 0) {
-                list.innerHTML = '<div style="color: #888; text-align: center; padding: 20px;">No active symbols</div>';
+                list.innerHTML = '<div style="color: #666; text-align: center; padding: 30px; font-style: italic;">No active symbols detected</div>';
                 return;
             }
             
             list.innerHTML = keys.map(sym => {
                 const d = symbols[sym];
                 const isActive = sym === currentSymbol;
-                const priceChange = (d.daily_pnl || 0) >= 0 ? '↗' : '↘';
-                const color = (d.daily_pnl || 0) >= 0 ? '#00ff88' : '#ff4444';
+                const change = ((d.daily_pnl || 0) / (d.equity || 1) * 100).toFixed(2);
+                const changeColor = (d.daily_pnl || 0) >= 0 ? '#00ff88' : '#ff4444';
+                const changeIcon = (d.daily_pnl || 0) >= 0 ? '↗' : '↘';
                 
                 return `
-                    <div class="symbol-item ${isActive ? 'active' : ''}" 
-                         onclick="selectSymbol('${sym}')">
-                        <div>
-                            <span style="font-weight: bold;">${sym}</span>
-                            <span style="font-size: 11px; color: #888; margin-left: 5px;">
-                                ${priceChange}
+                    <div class="symbol-item ${isActive ? 'active' : ''}" onclick="selectSymbol('${sym}')">
+                        <div style="display: flex; flex-direction: column;">
+                            <span style="font-weight: 800; font-size: 16px;">${sym}</span>
+                            <span style="font-size: 12px; color: ${changeColor};">
+                                ${changeIcon} ${change}%
                             </span>
                         </div>
-                        <span style="color: ${color}; font-weight: bold;">
-                            $${(d.bid || 0).toFixed(2)}
-                        </span>
+                        <div style="text-align: right;">
+                            <div style="font-weight: 800; font-size: 18px; color: #fff;">
+                                $${(d.bid || 0).toFixed(2)}
+                            </div>
+                            <div style="font-size: 11px; color: #aaa;">
+                                ${d.volatility || 'MEDIUM'}
+                            </div>
+                        </div>
                     </div>
                 `;
             }).join('');
@@ -858,13 +1151,13 @@
         function selectSymbol(symbol) {
             currentSymbol = symbol;
             console.log('🎯 Selected symbol:', symbol);
-            fetchData(); // Refresh data untuk simbol terpilih
+            fetchData();
         }
         
         function setConnected() {
             if (!isConnected) {
                 isConnected = true;
-                document.getElementById('connectionStatus').textContent = 'Connected';
+                document.getElementById('connectionStatus').textContent = 'CONNECTED';
                 document.getElementById('connectionBox').className = 'status-item connected';
                 document.getElementById('statusDot').className = 'dot green';
             }
@@ -872,7 +1165,7 @@
         
         function setDisconnected() {
             isConnected = false;
-            document.getElementById('connectionStatus').textContent = 'Waiting...';
+            document.getElementById('connectionStatus').textContent = 'DISCONNECTED';
             document.getElementById('connectionBox').className = 'status-item disconnected';
             document.getElementById('statusDot').className = 'dot red';
         }
