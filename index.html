@@ -344,7 +344,7 @@
             try {
                 console.log('🔄 Fetching EA data...');
                 
-                const response = await fetch(API_BASE + 'get_all_symbols');
+                const response = await fetch(API_BASE + 'data');
                 const data = await response.json();
                 
                 console.log('📊 Server response:', data);
