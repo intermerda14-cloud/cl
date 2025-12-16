@@ -1,21 +1,41 @@
-// In-memory storage
-if (!global.bbData) {
-    global.bbData = { symbols: {}, charts: {}, positions: {} };
-}
-
-export default function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Content-Type', 'application/json');
+function updateDashboard(data) {
+    console.log('🎛️ Updating dashboard with:', data);
     
-    if (req.method === 'OPTIONS') {
-        return res.status(200).end();
+    const symbols = data.symbols || {};
+    const symbolKeys = Object.keys(symbols);
+    const activeCount = symbolKeys.length;
+    
+    console.log('📈 Active symbols:', activeCount, symbolKeys);
+    
+    document.getElementById('activeCount').textContent = activeCount;
+    
+    if (activeCount > 0) {
+        // Hide waiting state, show chart
+        document.getElementById('waitingState').style.display = 'none';
+        document.getElementById('chartContainer').style.display = 'block';
+        
+        // Select first symbol if none selected
+        if (!currentSymbol || !symbols[currentSymbol]) {
+            currentSymbol = symbolKeys[0];
+            console.log('🔍 Selected symbol:', currentSymbol);
+        }
+        
+        // Update symbol data
+        if (currentSymbol && symbols[currentSymbol]) {
+            console.log('📊 Updating UI for:', currentSymbol);
+            updateSymbolData(symbols[currentSymbol]);
+        }
+        
+        // Update symbol list
+        updateSymbolList(symbols);
+        
+        // Show success in console
+        console.log('✅ Dashboard updated successfully!');
+    } else {
+        console.log('⚠️ No symbols in data');
+        showWaitingState('no_data', 
+            'No Data Received',
+            'EA connection detected but no trading data received.'
+        );
     }
-    
-    res.status(200).json({
-        status: 'ok',
-        timestamp: Date.now(),
-        symbols: global.bbData.symbols,
-        active_count: Object.keys(global.bbData.symbols).length
-    });
 }
