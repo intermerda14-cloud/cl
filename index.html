@@ -78,7 +78,7 @@
             padding: 20px;
         }
         .waiting .icon { font-size: 48px; margin-bottom: 20px; }
-        .debug-info {
+        .info-box {
             background: rgba(0,0,0,0.5);
             border-radius: 8px;
             padding: 15px;
@@ -88,7 +88,7 @@
             max-width: 600px;
             border-left: 3px solid #ffd700;
         }
-        .debug-info code {
+        .info-box code {
             background: rgba(255,255,255,0.1);
             padding: 2px 5px;
             border-radius: 3px;
@@ -155,7 +155,7 @@
         .ml-value.low { color: #ff4444; }
         .ml-label { color: #888; margin-top: 10px; }
         .footer { text-align: center; padding: 20px; color: #555; font-size: 12px; }
-        .test-button {
+        .test-btn {
             background: #00ff88;
             color: #000;
             border: none;
@@ -163,9 +163,9 @@
             border-radius: 4px;
             cursor: pointer;
             font-weight: bold;
-            margin-top: 10px;
+            margin-top: 15px;
         }
-        .test-button:hover { background: #00cc66; }
+        .test-btn:hover { background: #00cc66; }
         @media (max-width: 1200px) {
             .container { grid-template-columns: 1fr; }
             .sidebar { display: grid; grid-template-columns: repeat(2, 1fr); }
@@ -204,7 +204,7 @@
             </div>
             
             <div id="waitingState" class="waiting">
-                <!-- Dynamic content will be loaded here -->
+                <!-- Content will be loaded here -->
             </div>
             
             <div id="chartContainer" class="chart-container" style="display: none;">
@@ -311,208 +311,105 @@
     </div>
     
     <script>
-        // API Configuration
+        // Configuration
         const API_BASE = '/api/';
         const REFRESH_INTERVAL = 3000; // 3 seconds
         
         let chart = null;
         let currentSymbol = null;
         let isConnected = false;
-        let lastDataTime = 0;
         
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', () => {
+        // Start when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Dashboard starting...');
+            
+            // Update time every second
             updateServerTime();
             setInterval(updateServerTime, 1000);
             
-            // Show initial connection state
-            showWaitingState('initializing', 'Initializing dashboard...');
+            // Show initial message
+            showWaitingMessage('initial');
             
             // Start data fetching
             fetchData();
             setInterval(fetchData, REFRESH_INTERVAL);
-            
-            // Add manual test button
-            addTestButton();
         });
         
         function updateServerTime() {
-            document.getElementById('serverTime').textContent = 
-                new Date().toLocaleTimeString('en-US', { hour12: false });
+            const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+            document.getElementById('serverTime').textContent = time;
         }
         
-        function addTestButton() {
-            const waitingDiv = document.getElementById('waitingState');
-            const button = document.createElement('button');
-            button.className = 'test-button';
-            button.textContent = '🔄 Test Server Connection';
-            button.onclick = testServerConnection;
-            waitingDiv.appendChild(button);
-        }
-        
-        async function testServerConnection() {
+        async function fetchData() {
             try {
-                showWaitingState('testing', 'Testing server connection...');
+                console.log('🔄 Fetching EA data...');
                 
-                // Test ping endpoint
-                const pingRes = await fetch(API_BASE + 'ping');
-                const pingData = await pingRes.json();
+                const response = await fetch(API_BASE + 'get_all_symbols');
+                const data = await response.json();
                 
-                // Test debug endpoint
-                const debugRes = await fetch(API_BASE + 'debug');
-                const debugData = await debugRes.json();
+                console.log('📊 Server response:', data);
                 
-                showWaitingState('test_success', 
-                    `✅ Server is online!<br>
-                    Ping: ${pingData.message}<br>
-                    Active symbols: ${debugData.total_symbols}<br>
-                    Server time: ${pingData.time}`);
-                
-                console.log('Server test passed:', pingData, debugData);
+                if (data.status === 'ok') {
+                    if (data.active_count > 0) {
+                        console.log('✅ EA data found!');
+                        updateDashboard(data);
+                        setConnected();
+                    } else {
+                        console.log('⏳ Waiting for EA data...');
+                        showWaitingMessage('no_data');
+                        setDisconnected();
+                    }
+                }
                 
             } catch (error) {
-                showWaitingState('test_failed', 
-                    `❌ Server test failed!<br>
-                    Error: ${error.message}<br>
-                    Make sure Vercel deployment is complete.`);
-                console.error('Server test failed:', error);
+                console.error('❌ Error:', error);
+                showWaitingMessage('error');
+                setDisconnected();
             }
         }
         
-async function fetchData() {
-    try {
-        console.log('🔄 Fetch attempt:', new Date().toISOString());
-        
-        // Coba debug endpoint
-        const debugRes = await fetch('/api/debug');
-        
-        if (!debugRes.ok) {
-            console.warn('⚠️ Debug endpoint not ready, trying ping...');
-            // Fallback ke ping
-            const pingRes = await fetch('/api/ping');
-            const pingData = await pingRes.json();
-            
-            showWaitingState('server_ready', 
-                `✅ Server Online: ${pingData.message}<br>
-                Version: ${pingData.version}<br>
-                Waiting for EA data...`);
-            setDisconnected();
-            return;
-        }
-        
-        const debugData = await debugRes.json();
-        console.log('📊 Server status:', debugData);
-        
-        // Jika ada data dari EA
-        if (debugData.total_symbols > 0) {
-            const dataRes = await fetch('/api/get_all_symbols');
-            const data = await dataRes.json();
-            
-            if (data.status === 'ok') {
-                updateDashboard(data);
-                setConnected();
-                return;
-            }
-        }
-        
-        // Tidak ada data dari EA
-        showWaitingState('waiting_ea', 
-            `📡 Waiting for EA Connection<br>
-            Active symbols: ${debugData.total_symbols}<br>
-            Server time: ${debugData.timestamp}`);
-        setDisconnected();
-        
-    } catch (error) {
-        console.error('🌐 Connection error:', error);
-        
-        // Tampilkan error yang user-friendly
-        showWaitingState('error', 
-            `🌐 Connection Issue<br>
-            Error: ${error.message}<br>
-            Check: 1. Internet 2. Server status 3. EA settings`);
-        setDisconnected();
-    }
-}
-        
-        function showNoDataState(debugData) {
-            const age = debugData.last_updates && debugData.last_updates[0] 
-                ? debugData.last_updates[0].age_seconds 
-                : null;
-            
-            let message = 'EA is not sending data to server';
-            let details = '';
-            
-            if (age !== null && age < 60) {
-                message = 'Data received but expired (cleaned up)';
-                details = `Last data was ${age} seconds ago (cleaned after 120s)`;
-            }
-            
-            showWaitingState('no_data', message, details, debugData);
-        }
-        
-        function showWaitingState(state, title, details, debugData) {
+        function showWaitingMessage(type) {
             const waitingDiv = document.getElementById('waitingState');
-            
-            let icon = '📡';
             let html = '';
             
-            switch(state) {
-                case 'initializing':
+            switch(type) {
+                case 'initial':
                     html = `
-                        <div class="icon">${icon}</div>
-                        <h2>${title}</h2>
-                        <p>Connecting to server...</p>
+                        <div class="icon">🤖</div>
+                        <h2>BB Scalper V4.2 Dashboard</h2>
+                        <p>Starting up...</p>
                     `;
                     break;
                     
                 case 'no_data':
                     html = `
-                        <div class="icon">${icon}</div>
-                        <h2>${title}</h2>
-                        <p>${details || 'Waiting for EA to send data'}</p>
+                        <div class="icon">📡</div>
+                        <h2>Server Ready!</h2>
+                        <p>API is working, waiting for EA data.</p>
                         
-                        <div class="debug-info">
-                            <strong>Required EA Configuration:</strong><br>
-                            ✓ <code>UseWebMonitor = true</code><br>
-                            ✓ <code>WebMonitor_Host = "cl-ten-woad.vercel.app"</code><br>
-                            ✓ <code>WebMonitor_Path = "/"</code><br>
-                            ✓ Send to <code>/api/update</code> (NOT .php)<br>
-                            ✓ Check MT5 Experts tab for errors
+                        <div class="info-box">
+                            <strong>Check EA Settings:</strong><br>
+                            1. UseWebMonitor = true<br>
+                            2. WebMonitor_Host = "cl-ten-woad.vercel.app"<br>
+                            3. WebMonitor_Path = "/"<br>
+                            4. UseHTTPS = true<br>
+                            5. Web_Debug = true
                         </div>
                         
-                        ${debugData ? `
-                        <div class="debug-info">
-                            <strong>Server Status:</strong><br>
-                            • Server time: ${new Date().toISOString()}<br>
-                            • Active symbols: ${debugData.total_symbols}<br>
-                            • Last check: ${new Date().toLocaleTimeString()}
-                        </div>
-                        ` : ''}
+                        <button class="test-btn" onclick="testConnection()">
+                            🔄 Test Connection
+                        </button>
                     `;
                     break;
                     
-                case 'testing':
-                    html = `
-                        <div class="icon">🔍</div>
-                        <h2>${title}</h2>
-                        <p>Please wait...</p>
-                    `;
-                    break;
-                    
-                case 'test_success':
-                    html = `
-                        <div class="icon">✅</div>
-                        <h2>Server Connection Successful!</h2>
-                        <p>${details}</p>
-                        <p>Now waiting for EA to send trading data...</p>
-                    `;
-                    break;
-                    
-                case 'test_failed':
+                case 'error':
                     html = `
                         <div class="icon">❌</div>
-                        <h2>Connection Failed</h2>
-                        <p>${details}</p>
+                        <h2>Connection Error</h2>
+                        <p>Cannot reach server</p>
+                        <button class="test-btn" onclick="location.reload()">
+                            🔄 Reload Page
+                        </button>
                     `;
                     break;
                     
@@ -530,27 +427,45 @@ async function fetchData() {
             waitingDiv.innerHTML = html;
             waitingDiv.style.display = 'flex';
             document.getElementById('chartContainer').style.display = 'none';
-            
-            // Re-add test button if not present
-            if (!waitingDiv.querySelector('.test-button')) {
-                addTestButton();
-            }
         }
         
-        function showErrorState(error) {
+        async function testConnection() {
             const waitingDiv = document.getElementById('waitingState');
             waitingDiv.innerHTML = `
-                <div class="icon">⚠️</div>
-                <h2>Connection Error</h2>
-                <p>${error.message || 'Unknown error'}</p>
-                <p style="font-size: 12px; color: #aaa;">
-                    Check console for details (F12 → Console)
-                </p>
-                <button onclick="location.reload()" class="test-button">
-                    🔄 Retry Connection
-                </button>
+                <div class="icon">🔍</div>
+                <h2>Testing Connection...</h2>
+                <p>Please wait...</p>
             `;
-            waitingDiv.style.display = 'flex';
+            
+            try {
+                const response = await fetch(API_BASE + 'ping');
+                const data = await response.json();
+                
+                waitingDiv.innerHTML = `
+                    <div class="icon">✅</div>
+                    <h2>Connection Test Successful!</h2>
+                    <p>${data.message}</p>
+                    <div class="info-box">
+                        <strong>Status:</strong><br>
+                        • Server: Online<br>
+                        • Version: ${data.version}<br>
+                        • Time: ${data.time}
+                    </div>
+                    <button class="test-btn" onclick="location.reload()">
+                        🔄 Continue
+                    </button>
+                `;
+                
+            } catch (error) {
+                waitingDiv.innerHTML = `
+                    <div class="icon">❌</div>
+                    <h2>Connection Test Failed</h2>
+                    <p>Error: ${error.message}</p>
+                    <button class="test-btn" onclick="location.reload()">
+                        🔄 Retry
+                    </button>
+                `;
+            }
         }
         
         function updateDashboard(data) {
@@ -561,15 +476,16 @@ async function fetchData() {
             document.getElementById('activeCount').textContent = activeCount;
             
             if (activeCount > 0) {
+                // Hide waiting, show chart
                 document.getElementById('waitingState').style.display = 'none';
                 document.getElementById('chartContainer').style.display = 'block';
                 
-                // Select first symbol if none selected
+                // Select first symbol
                 if (!currentSymbol || !symbols[currentSymbol]) {
                     currentSymbol = symbolKeys[0];
                 }
                 
-                // Update symbol data and chart
+                // Update data
                 if (currentSymbol && symbols[currentSymbol]) {
                     updateSymbolData(symbols[currentSymbol]);
                 }
@@ -580,13 +496,13 @@ async function fetchData() {
         }
         
         function updateSymbolData(d) {
-            // Update main symbol info
+            // Basic info
             document.getElementById('chartSymbol').textContent = d.symbol || '--';
             document.getElementById('chartPrice').textContent = '$' + (d.bid || 0).toFixed(2);
             document.getElementById('chartSpread').textContent = 'Spread: ' + (d.spread || 0).toFixed(1);
             document.getElementById('chartVol').textContent = 'Vol: ' + (d.volatility || '--');
             
-            // Update account info
+            // Account info
             const equity = parseFloat(d.equity) || 0;
             const dailyPnl = parseFloat(d.daily_pnl) || 0;
             const floating = parseFloat(d.floating) || 0;
@@ -596,17 +512,16 @@ async function fetchData() {
             document.getElementById('headerEquity').textContent = '$' + equity.toFixed(0);
             document.getElementById('balance').textContent = '$' + (parseFloat(d.balance) || 0).toFixed(2);
             
-            // Update P/L with color coding
+            // P/L with colors
             const pnlEl = document.getElementById('dailyPnl');
             pnlEl.textContent = (dailyPnl >= 0 ? '+' : '') + '$' + dailyPnl.toFixed(2);
             pnlEl.className = 'account-value ' + (dailyPnl >= 0 ? 'positive' : 'negative');
             
-            // Update floating P/L
             const floatEl = document.getElementById('floating');
             floatEl.textContent = (floating >= 0 ? '+' : '') + '$' + floating.toFixed(2);
             floatEl.className = 'account-value ' + (floating >= 0 ? 'positive' : 'negative');
             
-            // Update other fields
+            // Other fields
             document.getElementById('commission').textContent = '$' + (parseFloat(d.commission) || 0).toFixed(2);
             document.getElementById('totalTrades').textContent = d.total_trades || 0;
             document.getElementById('winRate').textContent = (d.win_rate || 0).toFixed(1) + '%';
@@ -619,7 +534,7 @@ async function fetchData() {
             document.getElementById('tier2').textContent = 'T2: ' + (d.tier2 || 0);
             document.getElementById('tier3').textContent = 'T3: ' + (d.tier3 || 0);
             
-            // Update ML data
+            // ML data
             const mlConf = parseFloat(d.ml_confidence) || 0;
             const mlEl = document.getElementById('mlConfidence');
             mlEl.textContent = mlConf.toFixed(0) + '%';
@@ -628,11 +543,6 @@ async function fetchData() {
             document.getElementById('confluence').textContent = d.confluence || '--';
             document.getElementById('pattern').textContent = d.pattern || 'None';
             document.getElementById('volatility').textContent = d.volatility || '--';
-            
-            // Fetch chart data
-            if (d.symbol) {
-                fetchChartData(d.symbol);
-            }
         }
         
         function updateSymbolList(symbols) {
@@ -646,76 +556,19 @@ async function fetchData() {
             
             list.innerHTML = keys.map(sym => {
                 const d = symbols[sym];
-                return `<div class="symbol-item ${sym === currentSymbol ? 'active' : ''}" onclick="selectSymbol('${sym}')">
-                    <span>${sym}</span>
-                    <span style="color: #00ff88">$${(d.bid || 0).toFixed(2)}</span>
-                </div>`;
+                return `
+                    <div class="symbol-item ${sym === currentSymbol ? 'active' : ''}" 
+                         onclick="selectSymbol('${sym}')">
+                        <span>${sym}</span>
+                        <span style="color: #00ff88">$${(d.bid || 0).toFixed(2)}</span>
+                    </div>
+                `;
             }).join('');
         }
         
         function selectSymbol(symbol) {
             currentSymbol = symbol;
             fetchData();
-        }
-        
-        async function fetchChartData(symbol) {
-            if (!symbol) return;
-            try {
-                const response = await fetch(API_BASE + 'chart?symbol=' + symbol);
-                const data = await response.json();
-                if (data.status === 'ok' && data.data) {
-                    updateChart(data.data);
-                }
-            } catch (error) {
-                console.error('Chart fetch error:', error);
-            }
-        }
-        
-        function updateChart(chartData) {
-            if (!chartData || chartData.length === 0) return;
-            
-            const ctx = document.getElementById('priceChart').getContext('2d');
-            const labels = chartData.map(d => new Date(d.t * 1000));
-            const prices = chartData.map(d => d.c);
-            
-            if (chart) {
-                chart.data.labels = labels;
-                chart.data.datasets[0].data = prices;
-                chart.update('none');
-            } else {
-                chart = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            label: 'Price',
-                            data: prices,
-                            borderColor: '#00ff88',
-                            borderWidth: 2,
-                            fill: false,
-                            pointRadius: 0,
-                            tension: 0.1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: {
-                            x: {
-                                type: 'time',
-                                time: { unit: 'minute' },
-                                grid: { color: 'rgba(255,255,255,0.05)' },
-                                ticks: { color: '#888', maxTicksLimit: 8 }
-                            },
-                            y: {
-                                grid: { color: 'rgba(255,255,255,0.05)' },
-                                ticks: { color: '#888' }
-                            }
-                        }
-                    }
-                });
-            }
         }
         
         function setConnected() {
