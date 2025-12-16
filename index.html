@@ -377,32 +377,26 @@
         
         // ========== CHART DATA FETCH ==========
         async function fetchChartData(symbol) {
-            if (!symbol) return;
-            
-            console.log('📈 Fetching chart data for:', symbol);
-            
+        if (!symbol) return;
+    
+            console.log('📈 Fetching chart for:', symbol);
+    
             try {
-                const response = await fetch(API_BASE + 'data');
+                const response = await fetch(`/api/chart?symbol=${symbol}`);
                 const data = await response.json();
-                
-                if (data.status === 'ok' && data.charts_count > 0) {
-                    // Cari chart data untuk simbol ini
-                    const chartData = data.symbols[symbol] || null;
-                    
-                    if (chartData && chartData.chart_data) {
-                        console.log('✅ Found chart data for', symbol);
-                        updateChart(chartData.chart_data, symbol);
-                        lastChartUpdate = Date.now();
-                    } else {
-                        console.log('⚠️ No chart data for', symbol, '- creating placeholder');
-                        createPlaceholderChart(symbol);
-                    }
+        
+                console.log('📊 Chart response:', data);
+        
+                if (data.status === 'ok' && data.data && data.data.length > 0) {
+                    console.log(`✅ Found ${data.data.length} chart points`);
+                    updateChart(data.data, symbol);
                 } else {
+                    console.log('⚠️ No chart data, creating placeholder');
                     createPlaceholderChart(symbol);
                 }
-                
+        
             } catch (error) {
-                console.error('Chart fetch error:', error);
+                console.error('❌ Chart fetch error:', error);
                 createPlaceholderChart(symbol);
             }
         }
