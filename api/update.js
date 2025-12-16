@@ -3,6 +3,9 @@ if (!global.bbData) {
     global.bbData = { symbols: {}, charts: {}, positions: {} };
 }
 
+global.bbData.symbols[symbol] = data;
+console.log('💾 Saved data for:', symbol, 'Total:', Object.keys(global.bbData.symbols).length);
+
 export default function handler(req, res) {
     // Set CORS headers - HARUS DI AWAL
     res.setHeader('Access-Control-Allow-Origin', '*');
