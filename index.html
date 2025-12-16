@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BB Scalper V4.2 Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@latest/dist/chartjs-chart-financial.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/luxon@3/build/global/luxon.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1"></script>
     <style>
@@ -63,10 +64,17 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .chart-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
         }
         .symbol-title { font-size: 20px; font-weight: bold; }
         .symbol-title .price { color: #00ff88; margin-left: 15px; }
-        .chart-container { height: 400px; position: relative; }
+        .chart-container { height: 500px; position: relative; }
         .waiting {
             display: flex;
             flex-direction: column;
@@ -87,6 +95,17 @@
             text-align: left;
             max-width: 600px;
             border-left: 3px solid #ffd700;
+        }
+        select, button {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 1px solid #00ff88;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        select:hover, button:hover {
+            background: rgba(0,255,136,0.2);
         }
         .sidebar { display: flex; flex-direction: column; gap: 15px; }
         .card {
@@ -167,6 +186,8 @@
         @media (max-width: 768px) {
             .sidebar { grid-template-columns: 1fr; }
             .header { flex-direction: column; gap: 15px; }
+            .chart-header { flex-direction: column; align-items: flex-start; }
+            .chart-controls { width: 100%; justify-content: space-between; }
         }
     </style>
 </head>
@@ -191,9 +212,18 @@
                     <span id="chartSymbol">--</span>
                     <span class="price" id="chartPrice">$0.00</span>
                 </div>
-                <div>
-                    <span id="chartSpread">Spread: --</span> | 
-                    <span id="chartVol">Vol: --</span> |
+                <div class="chart-controls">
+                    <select id="timeframeSelect">
+                        <option value="M1">M1</option>
+                        <option value="M5">M5</option>
+                        <option value="M15">M15</option>
+                        <option value="M30" selected>M30</option>
+                        <option value="H1">H1</option>
+                        <option value="H4">H4</option>
+                    </select>
+                    <button onclick="refreshChart()">🔄 Refresh</button>
+                    <span id="chartSpread">Spread: --</span>
+                    <span id="chartVol">Vol: --</span>
                     <span id="chartTime">--:--:--</span>
                 </div>
             </div>
@@ -302,7 +332,7 @@
     </div>
     
     <div class="footer">
-        BB Scalper V4.2 Ultimate Pro | Vercel Edition | Auto-refresh 3s
+        BB Scalper V4.2 Ultimate Pro | Vercel Edition | Auto-refresh 3s | Candlestick Charts
     </div>
     
     <script>
@@ -323,6 +353,14 @@
             updateServerTime();
             setInterval(updateServerTime, 1000);
             
+            // Setup timeframe selector
+            document.getElementById('timeframeSelect').addEventListener('change', function() {
+                console.log('📊 Timeframe changed to:', this.value);
+                if (currentSymbol) {
+                    fetchChartData(currentSymbol);
+                }
+            });
+            
             // Show initial message
             showWaitingMessage('initial');
             
@@ -335,6 +373,13 @@
             const time = new Date().toLocaleTimeString('en-US', { hour12: false });
             document.getElementById('serverTime').textContent = time;
             document.getElementById('chartTime').textContent = time;
+        }
+        
+        function refreshChart() {
+            if (currentSymbol) {
+                console.log('🔄 Manually refreshing chart for:', currentSymbol);
+                fetchChartData(currentSymbol);
+            }
         }
         
         // ========== MAIN DATA FETCH ==========
@@ -377,24 +422,26 @@
         
         // ========== CHART DATA FETCH ==========
         async function fetchChartData(symbol) {
-        if (!symbol) return;
-    
-            console.log('📈 Fetching chart for:', symbol);
-    
+            if (!symbol) return;
+            
+            const timeframe = document.getElementById('timeframeSelect').value;
+            console.log(`📈 Fetching ${timeframe} chart for:`, symbol);
+            
             try {
-                const response = await fetch(`/api/chart?symbol=${symbol}`);
+                const response = await fetch(`${API_BASE}chart?symbol=${symbol}&timeframe=${timeframe}`);
                 const data = await response.json();
-        
+                
                 console.log('📊 Chart response:', data);
-        
+                
                 if (data.status === 'ok' && data.data && data.data.length > 0) {
-                    console.log(`✅ Found ${data.data.length} chart points`);
-                    updateChart(data.data, symbol);
+                    console.log(`✅ Found ${data.data.length} candles for ${data.timeframe}`);
+                    updateChart(data.data, symbol, data.timeframe);
+                    lastChartUpdate = Date.now();
                 } else {
                     console.log('⚠️ No chart data, creating placeholder');
                     createPlaceholderChart(symbol);
                 }
-        
+                
             } catch (error) {
                 console.error('❌ Chart fetch error:', error);
                 createPlaceholderChart(symbol);
@@ -409,29 +456,42 @@
                 chart.destroy();
             }
             
-            // Create placeholder data (60 minutes)
-            const labels = [];
-            const prices = [];
+            // Create placeholder candlestick data
+            const placeholderData = [];
             const now = Date.now();
+            let price = 100;
             
             for (let i = 60; i >= 0; i--) {
-                labels.push(new Date(now - i * 60000));
-                // Random walk for placeholder
-                const lastPrice = prices.length > 0 ? prices[prices.length - 1] : 100;
-                prices.push(lastPrice + (Math.random() - 0.5) * 2);
+                const time = new Date(now - i * 60000);
+                const open = price;
+                const high = open + Math.random() * 2;
+                const low = open - Math.random() * 2;
+                const close = low + Math.random() * (high - low);
+                
+                placeholderData.push({
+                    x: time,
+                    o: open,
+                    h: high,
+                    l: low,
+                    c: close
+                });
+                
+                price = close;
             }
             
             chart = new Chart(ctx, {
-                type: 'line',
+                type: 'candlestick',
                 data: {
-                    labels: labels,
                     datasets: [{
                         label: `${symbol} - Waiting for EA Chart Data`,
-                        data: prices,
-                        borderColor: '#ffd700',
-                        borderWidth: 2,
-                        fill: false,
-                        tension: 0.1
+                        data: placeholderData,
+                        color: {
+                            up: '#00ff88',
+                            down: '#ff4444',
+                            unchanged: '#999'
+                        },
+                        borderColor: '#333',
+                        borderWidth: 1
                     }]
                 },
                 options: {
@@ -441,7 +501,7 @@
                         legend: { display: false },
                         title: {
                             display: true,
-                            text: '⚡ EA Chart Data Pending',
+                            text: '⚡ Waiting for EA Candlestick Data',
                             color: '#ffd700',
                             font: { size: 14 }
                         }
@@ -455,15 +515,20 @@
                         },
                         y: {
                             grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { color: '#888' }
+                            ticks: { 
+                                color: '#888',
+                                callback: function(value) {
+                                    return '$' + value.toFixed(2);
+                                }
+                            }
                         }
                     }
                 }
             });
         }
         
-        // ========== UPDATE CHART WITH REAL DATA ==========
-        function updateChart(chartData, symbol) {
+        // ========== UPDATE CANDLESTICK CHART ==========
+        function updateChart(chartData, symbol, timeframe) {
             if (!chartData || !Array.isArray(chartData) || chartData.length === 0) {
                 createPlaceholderChart(symbol);
                 return;
@@ -471,51 +536,100 @@
             
             const ctx = document.getElementById('priceChart').getContext('2d');
             
-            // Process chart data
-            const labels = chartData.map(item => new Date(item.t * 1000));
-            const prices = chartData.map(item => item.c);
+            // Convert to candlestick format
+            const financialData = chartData.map(item => ({
+                x: new Date(item.t * 1000),
+                o: parseFloat(item.o) || 0,
+                h: parseFloat(item.h) || 0,
+                l: parseFloat(item.l) || 0,
+                c: parseFloat(item.c) || 0
+            }));
+            
+            // Update timeframe selector
+            document.getElementById('timeframeSelect').value = timeframe || 'M1';
             
             if (chart) {
-                chart.data.labels = labels;
-                chart.data.datasets[0].data = prices;
-                chart.data.datasets[0].label = `${symbol} - Real-time`;
-                chart.data.datasets[0].borderColor = '#00ff88';
+                chart.data.datasets[0].data = financialData;
+                chart.data.datasets[0].label = `${symbol} (${timeframe})`;
                 chart.update('none');
             } else {
+                // Create new candlestick chart
                 chart = new Chart(ctx, {
-                    type: 'line',
+                    type: 'candlestick',
                     data: {
-                        labels: labels,
                         datasets: [{
-                            label: `${symbol} - Real-time`,
-                            data: prices,
-                            borderColor: '#00ff88',
-                            borderWidth: 2,
-                            fill: false,
-                            tension: 0.1
+                            label: `${symbol} (${timeframe})`,
+                            data: financialData,
+                            color: {
+                                up: '#00ff88',
+                                down: '#ff4444',
+                                unchanged: '#999'
+                            },
+                            borderColor: '#333',
+                            borderWidth: 1
                         }]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const point = context.raw;
+                                        return [
+                                            `O: $${point.o.toFixed(2)}`,
+                                            `H: $${point.h.toFixed(2)}`,
+                                            `L: $${point.l.toFixed(2)}`,
+                                            `C: $${point.c.toFixed(2)}`
+                                        ];
+                                    }
+                                }
+                            }
+                        },
                         scales: {
                             x: {
                                 type: 'time',
-                                time: { unit: 'minute' },
+                                time: {
+                                    unit: getTimeUnit(timeframe),
+                                    displayFormats: {
+                                        minute: 'HH:mm',
+                                        hour: 'MM-dd HH:mm',
+                                        day: 'MM-dd'
+                                    }
+                                },
                                 grid: { color: 'rgba(255,255,255,0.05)' },
-                                ticks: { color: '#888', maxTicksLimit: 8 }
+                                ticks: { color: '#888', maxTicksLimit: 10 }
                             },
                             y: {
+                                position: 'right',
                                 grid: { color: 'rgba(255,255,255,0.05)' },
-                                ticks: { color: '#888' }
+                                ticks: { 
+                                    color: '#888',
+                                    callback: function(value) {
+                                        return '$' + value.toFixed(2);
+                                    }
+                                }
                             }
                         }
                     }
                 });
             }
             
-            console.log('📈 Chart updated with', chartData.length, 'data points');
+            console.log(`📈 Candlestick chart updated: ${financialData.length} candles (${timeframe})`);
+        }
+        
+        function getTimeUnit(timeframe) {
+            switch(timeframe) {
+                case 'M1': return 'minute';
+                case 'M5': return 'minute';
+                case 'M15': return 'minute';
+                case 'M30': return 'minute';
+                case 'H1': return 'hour';
+                case 'H4': return 'hour';
+                default: return 'minute';
+            }
         }
         
         // ========== DASHBOARD FUNCTIONS ==========
@@ -529,6 +643,13 @@
                         <div class="icon">⚡</div>
                         <h2>BB Scalper V4.2 Dashboard</h2>
                         <p>Initializing real-time monitoring...</p>
+                        <div class="info-box">
+                            <strong>Features Ready:</strong><br>
+                            • Real-time candlestick charts<br>
+                            • Multiple timeframe support<br>
+                            • ML Engine monitoring<br>
+                            • Performance analytics
+                        </div>
                     `;
                     break;
                     
@@ -540,10 +661,10 @@
                         
                         <div class="info-box">
                             <strong>Expected Data from EA:</strong><br>
-                            • Symbol data (equity, trades, stats)<br>
-                            • Chart data (price history)<br>
-                            • ML Engine data (confidence, patterns)<br>
-                            • Performance metrics
+                            • Symbol data to: /api/data<br>
+                            • Candlestick data to: /api/chart<br>
+                            • Timeframe: M1, M5, M15, M30, H1, H4<br>
+                            • Auto-refresh every 3 seconds
                         </div>
                         
                         <button class="test-btn" onclick="testConnection()">
@@ -567,7 +688,7 @@
                     html = `
                         <div class="icon">🤖</div>
                         <h2>BB Scalper V4.2 Dashboard</h2>
-                        <p>Real-time trading monitor</p>
+                        <p>Real-time trading monitor with candlestick charts</p>
                     `;
             }
             
