@@ -1,4 +1,4 @@
-// /api/data.js - COMPLETE VERSION
+// /api/data.js - COMPLETE VERSION FOR SYMBOL DATA
 let storage = {
     symbols: {},    // Data utama dari EA
     charts: {},     // Chart data
@@ -75,7 +75,7 @@ export default function handler(req, res) {
         }
     }
     
-    // === POST: Dari EA (simbol data atau chart data) ===
+    // === POST: Dari EA (simbol data) ===
     if (req.method === 'POST') {
         try {
             const data = req.body;
@@ -87,38 +87,8 @@ export default function handler(req, res) {
                 });
             }
             
-            // Tentukan tipe data berdasarkan field yang ada
-            const hasChartData = data.data && Array.isArray(data.data);  // Chart data
-            const hasSymbolData = data.symbol && !hasChartData;          // Symbol data
-            
-            if (hasChartData) {
-                // ========== CHART DATA ==========
-                console.log('📈 Receiving CHART data for:', data.symbol);
-                
-                if (!data.symbol) {
-                    return res.status(400).json({
-                        status: 'error',
-                        message: 'No symbol in chart data'
-                    });
-                }
-                
-                const symbol = data.symbol;
-                data.last_update = Date.now();
-                
-                storage.charts[symbol] = data;
-                
-                console.log(`💾 Chart saved: ${symbol}, points: ${data.data.length}`);
-                
-                return res.status(200).json({
-                    status: 'ok',
-                    type: 'chart',
-                    symbol: symbol,
-                    data_points: data.data.length,
-                    message: 'Chart data saved'
-                });
-                
-            } else if (hasSymbolData) {
-                // ========== SYMBOL DATA ==========
+            // ========== SYMBOL DATA ==========
+            if (data.symbol && !data.data) { // Check jika ini symbol data (bukan chart)
                 console.log('📊 Receiving SYMBOL data for:', data.symbol);
                 
                 const symbol = data.symbol;
@@ -127,20 +97,33 @@ export default function handler(req, res) {
                 data.last_update = Date.now();
                 data.server_time = new Date().toISOString();
                 
-                // Ensure all required fields exist
-                const requiredFields = [
-                    'total_trades', 'wins', 'losses', 'win_rate',
-                    'ml_confidence', 'sharpe', 'profit_factor', 'expectancy',
-                    'tier1', 'tier2', 'tier3', 'commission',
-                    'confluence', 'pattern', 'volatility'
-                ];
+                // Ensure all required fields exist with defaults
+                const defaultValues = {
+                    total_trades: 0,
+                    wins: 0,
+                    losses: 0,
+                    win_rate: 0,
+                    ml_confidence: 0,
+                    sharpe: 0,
+                    profit_factor: 0,
+                    expectancy: 0,
+                    tier1: 0,
+                    tier2: 0,
+                    tier3: 0,
+                    commission: 0,
+                    confluence: 0,
+                    pattern: 'NONE',
+                    volatility: 'MEDIUM',
+                    spread: 0,
+                    floating: 0,
+                    daily_pnl: 0,
+                    balance: 0
+                };
                 
-                // Set default values if missing
-                requiredFields.forEach(field => {
-                    if (data[field] === undefined) {
-                        data[field] = field.includes('tier') ? 0 : 
-                                     field === 'pattern' ? 'NONE' : 
-                                     field === 'volatility' ? 'MEDIUM' : 0;
+                // Apply defaults jika field tidak ada
+                Object.keys(defaultValues).forEach(field => {
+                    if (data[field] === undefined || data[field] === null) {
+                        data[field] = defaultValues[field];
                     }
                 });
                 
@@ -148,7 +131,7 @@ export default function handler(req, res) {
                 storage.symbols[symbol] = data;
                 
                 console.log(`💾 Symbol saved: ${symbol}`);
-                console.log(`📈 Stats: Trades=${data.total_trades || 0}, WR=${data.win_rate || 0}%, ML=${data.ml_confidence || 0}%`);
+                console.log(`📈 Stats: Trades=${data.total_trades}, WR=${data.win_rate}%, ML=${data.ml_confidence}%`);
                 
                 return res.status(200).json({
                     status: 'ok',
@@ -158,13 +141,12 @@ export default function handler(req, res) {
                     fields_received: Object.keys(data).length,
                     message: 'Symbol data saved'
                 });
-                
-            } else {
-                return res.status(400).json({
-                    status: 'error',
-                    message: 'Unknown data type. Need symbol or chart data.'
-                });
             }
+            
+            return res.status(400).json({
+                status: 'error',
+                message: 'Unknown data type. Need symbol data.'
+            });
             
         } catch (error) {
             console.error('❌ POST Error:', error);
