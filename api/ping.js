@@ -1,4 +1,4 @@
-// In-memory storage (shared across functions in same instance)
+// /api/ping.js
 if (!global.bbData) {
     global.bbData = { symbols: {}, charts: {}, positions: {} };
 }
