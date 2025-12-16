@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BB Scalper V4.2 Dashboard</title>
-    <!-- TradingView Lightweight Charts -->
-    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
@@ -100,6 +98,10 @@
             height: 600px;
             border-radius: 8px;
             overflow: hidden;
+            background: #0c0c14;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .waiting {
             display: flex;
@@ -185,7 +187,7 @@
         <div class="status-bar">
             <div class="status-item" id="connectionBox">
                 <span class="dot" id="statusDot"></span>
-                <span id="connectionStatus">CONNECTING</span>
+                <span id="connectionStatus">LOADING</span>
             </div>
             <div class="status-item">ACTIVE: <span id="activeCount">0</span></div>
             <div class="status-item">EQUITY: <span id="headerEquity">$0</span></div>
@@ -216,14 +218,8 @@
                 </div>
             </div>
             
-            <div id="waitingState" class="waiting">
-                <div style="font-size: 48px; margin-bottom: 20px;">📊</div>
-                <h2>LOADING PROFESSIONAL CHART</h2>
-                <p style="color: #888; margin-top: 10px;">TradingView Lightweight Charts Engine</p>
-            </div>
-            
-            <div id="chartContainer" style="display: none;">
-                <div id="tv-chart"></div>
+            <div id="tv-chart">
+                <!-- Loading screen will be shown here -->
             </div>
         </div>
         
@@ -252,7 +248,7 @@
             <div class="card">
                 <div class="card-title">📊 ACTIVE SYMBOLS</div>
                 <div class="symbol-list" id="symbolList">
-                    <div style="color: #666; text-align: center; padding: 20px;">No active symbols</div>
+                    <div style="color: #666; text-align: center; padding: 20px;">Loading symbols...</div>
                 </div>
             </div>
             
@@ -324,158 +320,238 @@
     <div class="footer">
         BB Scalper V4.2 | TradingView Lightweight Charts | Real-time Monitoring
     </div>
-    
+
     <script>
-        // Configuration
+        // === CONFIGURATION ===
         const API_BASE = '/api/';
         const REFRESH_INTERVAL = 3000;
         
-        // TradingView Chart
+        // === GLOBAL VARIABLES ===
         let tvChart = null;
         let candleSeries = null;
-        let volumeSeries = null;
         let currentSymbol = null;
         let isConnected = false;
+        let chartInitialized = false;
         
-        // Start when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 BB Scalper V4.2 - TradingView Charts');
+        // === IMMEDIATE LOADING SCREEN ===
+        (function showLoadingScreen() {
+            const chartContainer = document.getElementById('tv-chart');
+            chartContainer.innerHTML = `
+                <div style="
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100%;
+                    color: #00ff88;
+                    text-align: center;
+                    padding: 20px;
+                ">
+                    <div style="font-size: 48px; margin-bottom: 20px;">⚡</div>
+                    <h3 style="margin-bottom: 10px;">PROFESSIONAL CHART ENGINE</h3>
+                    <p style="color: #888; margin-bottom: 30px;">Loading TradingView Lightweight Charts...</p>
+                    
+                    <div style="
+                        width: 300px;
+                        height: 6px;
+                        background: rgba(255,255,255,0.1);
+                        border-radius: 3px;
+                        overflow: hidden;
+                    ">
+                        <div id="chartLoadingBar" style="
+                            width: 0%;
+                            height: 100%;
+                            background: linear-gradient(90deg, #00ff88, #ffd700);
+                            border-radius: 3px;
+                            transition: width 0.3s;
+                        "></div>
+                    </div>
+                    
+                    <div style="display: flex; justify-content: space-between; width: 300px; margin-top: 10px;">
+                        <span style="font-size: 12px; color: #888;">Loading</span>
+                        <span id="loadingPercent" style="font-size: 12px; color: #00ff88;">0%</span>
+                    </div>
+                </div>
+            `;
             
-            // Initialize TradingView Chart
-            initializeTradingViewChart();
+            // Animate loading bar
+            let progress = 0;
+            const bar = document.getElementById('chartLoadingBar');
+            const percent = document.getElementById('loadingPercent');
+            const interval = setInterval(() => {
+                progress += 2;
+                if (progress > 80) progress = 80; // Stop at 80%, wait for chart
+                bar.style.width = progress + '%';
+                percent.textContent = progress + '%';
+            }, 30);
             
-            // Update time
+            // Update time immediately
             updateServerTime();
             setInterval(updateServerTime, 1000);
             
+            // Start checking data IMMEDIATELY
+            setTimeout(initializeDashboard, 500);
+            
+            // Load TradingView ASYNC
+            loadTradingView();
+        })();
+        
+        // === LOAD TRADINGVIEW LIBRARY ===
+        function loadTradingView() {
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js';
+            script.async = true;
+            script.onload = function() {
+                console.log('✅ TradingView library loaded');
+                initializeTradingViewChart();
+            };
+            script.onerror = function() {
+                console.log('⚠️ TradingView failed, using simple chart');
+                createSimpleChart();
+            };
+            document.head.appendChild(script);
+        }
+        
+        // === INITIALIZE TRADINGVIEW CHART ===
+        function initializeTradingViewChart() {
+            try {
+                const chartContainer = document.getElementById('tv-chart');
+                
+                tvChart = LightweightCharts.createChart(chartContainer, {
+                    width: chartContainer.clientWidth,
+                    height: chartContainer.clientHeight,
+                    layout: {
+                        backgroundColor: '#0c0c14',
+                        textColor: '#e0e0ff',
+                    },
+                    grid: {
+                        vertLines: { color: '#1a1a2a' },
+                        horzLines: { color: '#1a1a2a' },
+                    },
+                    crosshair: {
+                        mode: LightweightCharts.CrosshairMode.Normal,
+                    },
+                    rightPriceScale: {
+                        borderColor: '#1a1a2a',
+                    },
+                    timeScale: {
+                        borderColor: '#1a1a2a',
+                        timeVisible: true,
+                        secondsVisible: false,
+                    },
+                });
+                
+                candleSeries = tvChart.addCandlestickSeries({
+                    upColor: '#00ff88',
+                    downColor: '#ff4444',
+                    borderUpColor: '#00cc66',
+                    borderDownColor: '#cc0000',
+                    wickUpColor: '#00cc66',
+                    wickDownColor: '#cc0000',
+                });
+                
+                // Complete loading bar
+                document.getElementById('chartLoadingBar').style.width = '100%';
+                document.getElementById('loadingPercent').textContent = '100%';
+                
+                // Hide loading text after 1 second
+                setTimeout(() => {
+                    const loadingText = document.querySelector('#tv-chart p');
+                    if (loadingText) loadingText.textContent = 'Chart Ready!';
+                }, 1000);
+                
+                chartInitialized = true;
+                console.log('✅ TradingView Chart initialized');
+                
+                // If we already have data, update chart
+                if (currentSymbol) {
+                    fetchChartData(currentSymbol);
+                }
+                
+                // Handle resize
+                window.addEventListener('resize', () => {
+                    tvChart.applyOptions({
+                        width: chartContainer.clientWidth,
+                        height: chartContainer.clientHeight,
+                    });
+                });
+                
+            } catch (error) {
+                console.error('❌ TradingView init error:', error);
+                createSimpleChart();
+            }
+        }
+        
+        // === SIMPLE CHART FALLBACK ===
+        function createSimpleChart() {
+            const chartContainer = document.getElementById('tv-chart');
+            chartContainer.innerHTML = `
+                <div style="
+                    width: 100%;
+                    height: 100%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #ffd700;
+                    text-align: center;
+                    padding: 20px;
+                ">
+                    <div>
+                        <div style="font-size: 48px; margin-bottom: 20px;">📊</div>
+                        <h3>Simple Chart Mode</h3>
+                        <p style="color: #888; margin-top: 10px;">
+                            TradingView failed to load<br>
+                            Using basic display mode
+                        </p>
+                        <div id="simpleChart" style="
+                            width: 100%;
+                            height: 300px;
+                            margin-top: 30px;
+                        "></div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // === INITIALIZE DASHBOARD ===
+        function initializeDashboard() {
+            console.log('🚀 Initializing dashboard...');
+            
             // Setup timeframe selector
             document.getElementById('timeframeSelect').addEventListener('change', function() {
-                console.log('Timeframe changed to:', this.value);
+                console.log('Timeframe changed:', this.value);
                 if (currentSymbol) {
                     fetchChartData(currentSymbol);
                 }
             });
             
-            // Start data fetching
-            setTimeout(() => {
-                fetchData();
-                setInterval(fetchData, REFRESH_INTERVAL);
-            }, 1000);
-        });
+            // Start checking data
+            fetchData();
+            
+            // Set auto-refresh
+            setInterval(fetchData, REFRESH_INTERVAL);
+        }
         
+        // === UPDATE SERVER TIME ===
         function updateServerTime() {
-            const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+            const time = new Date().toLocaleTimeString('en-US', { 
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
             document.getElementById('serverTime').textContent = time;
         }
         
+        // === REFRESH CHART ===
         function refreshChart() {
             if (currentSymbol) {
-                console.log('Refreshing chart for:', currentSymbol);
+                console.log('Manual refresh for:', currentSymbol);
                 fetchChartData(currentSymbol);
             }
         }
         
-        // ========== TRADINGVIEW CHART INITIALIZATION ==========
-        function initializeTradingViewChart() {
-            const chartContainer = document.getElementById('tv-chart');
-            
-            // Create chart
-            tvChart = LightweightCharts.createChart(chartContainer, {
-                width: chartContainer.clientWidth,
-                height: chartContainer.clientHeight,
-                layout: {
-                    backgroundColor: '#0c0c14',
-                    textColor: '#e0e0ff',
-                },
-                grid: {
-                    vertLines: { color: '#1a1a2a' },
-                    horzLines: { color: '#1a1a2a' },
-                },
-                crosshair: {
-                    mode: LightweightCharts.CrosshairMode.Normal,
-                },
-                rightPriceScale: {
-                    borderColor: '#1a1a2a',
-                    scaleMargins: {
-                        top: 0.1,
-                        bottom: 0.1,
-                    },
-                },
-                timeScale: {
-                    borderColor: '#1a1a2a',
-                    timeVisible: true,
-                    secondsVisible: false,
-                },
-                watermark: {
-                    visible: true,
-                    fontSize: 24,
-                    horzAlign: 'center',
-                    vertAlign: 'center',
-                    color: 'rgba(255, 255, 255, 0.04)',
-                    text: 'BB SCALPER V4.2',
-                },
-            });
-            
-            // Create candlestick series
-            candleSeries = tvChart.addCandlestickSeries({
-                upColor: '#00ff88',
-                downColor: '#ff4444',
-                borderUpColor: '#00cc66',
-                borderDownColor: '#cc0000',
-                wickUpColor: '#00cc66',
-                wickDownColor: '#cc0000',
-            });
-            
-            // Create volume series (optional)
-            volumeSeries = tvChart.addHistogramSeries({
-                color: '#26a69a',
-                priceFormat: {
-                    type: 'volume',
-                },
-                priceScaleId: '',
-                scaleMargins: {
-                    top: 0.8,
-                    bottom: 0,
-                },
-            });
-            
-            // Handle resize
-            window.addEventListener('resize', () => {
-                tvChart.applyOptions({
-                    width: chartContainer.clientWidth,
-                    height: chartContainer.clientHeight,
-                });
-            });
-            
-            console.log('✅ TradingView Chart initialized');
-        }
-        
-        // ========== UPDATE TRADINGVIEW CHART ==========
-        function updateTradingViewChart(candlestickData, symbol) {
-            if (!candleSeries || !candlestickData || candlestickData.length === 0) {
-                console.log('No chart data to display');
-                return;
-            }
-            
-            // Convert to TradingView format
-            const tvData = candlestickData.map(candle => ({
-                time: Math.floor(candle.t), // Unix timestamp in seconds
-                open: candle.o,
-                high: candle.h,
-                low: candle.l,
-                close: candle.c,
-            }));
-            
-            // Update chart
-            candleSeries.setData(tvData);
-            
-            // Auto-fit time scale
-            tvChart.timeScale().fitContent();
-            
-            console.log(`📈 TradingView chart updated: ${tvData.length} candles`);
-        }
-        
-        // ========== MAIN DATA FETCH ==========
+        // === FETCH DATA FROM SERVER ===
         async function fetchData() {
             try {
                 const response = await fetch(API_BASE + 'data');
@@ -483,29 +559,22 @@
                 
                 if (data.status === 'ok') {
                     if (data.active_count > 0) {
-                        // Show chart container
-                        document.getElementById('waitingState').style.display = 'none';
-                        document.getElementById('chartContainer').style.display = 'block';
-                        
                         updateDashboard(data);
                         setConnected();
-                        
-                        // Fetch chart data
-                        if (currentSymbol) {
-                            fetchChartData(currentSymbol);
-                        }
                     } else {
                         setDisconnected();
                     }
+                } else {
+                    setDisconnected();
                 }
                 
             } catch (error) {
-                console.error('Error:', error);
+                console.error('❌ Data fetch error:', error);
                 setDisconnected();
             }
         }
         
-        // ========== CHART DATA FETCH ==========
+        // === FETCH CHART DATA ===
         async function fetchChartData(symbol) {
             if (!symbol) return;
             
@@ -514,7 +583,11 @@
                 const data = await response.json();
                 
                 if (data.status === 'ok' && data.data && data.data.length > 0) {
-                    updateTradingViewChart(data.data, symbol);
+                    if (chartInitialized && candleSeries) {
+                        updateTradingViewChart(data.data);
+                    } else {
+                        console.log('Chart not ready yet, data available for:', symbol);
+                    }
                 }
                 
             } catch (error) {
@@ -522,7 +595,25 @@
             }
         }
         
-        // ========== DASHBOARD FUNCTIONS ==========
+        // === UPDATE TRADINGVIEW CHART ===
+        function updateTradingViewChart(candlestickData) {
+            if (!candleSeries) return;
+            
+            const tvData = candlestickData.map(candle => ({
+                time: Math.floor(candle.t),
+                open: parseFloat(candle.o) || 0,
+                high: parseFloat(candle.h) || 0,
+                low: parseFloat(candle.l) || 0,
+                close: parseFloat(candle.c) || 0,
+            }));
+            
+            candleSeries.setData(tvData);
+            tvChart.timeScale().fitContent();
+            
+            console.log(`📈 Chart updated with ${tvData.length} candles`);
+        }
+        
+        // === UPDATE DASHBOARD UI ===
         function updateDashboard(data) {
             const symbols = data.symbols || {};
             const symbolKeys = Object.keys(symbols);
@@ -546,6 +637,7 @@
             }
         }
         
+        // === UPDATE SYMBOL DATA ===
         function updateSymbolData(d) {
             // Basic info
             document.getElementById('chartSymbol').textContent = d.symbol || '--';
@@ -572,12 +664,16 @@
             floatEl.textContent = (floating >= 0 ? '+' : '') + '$' + floating.toFixed(2);
             floatEl.className = 'account-value ' + (floating >= 0 ? 'positive' : 'negative');
             
-            // Other fields
+            // Commission
             document.getElementById('commission').textContent = '$' + (parseFloat(d.commission) || 0).toFixed(2);
+            
+            // Performance
             document.getElementById('totalTrades').textContent = d.total_trades || 0;
             document.getElementById('winRate').textContent = (d.win_rate || 0).toFixed(1) + '%';
             document.getElementById('wins').textContent = d.wins || 0;
             document.getElementById('losses').textContent = d.losses || 0;
+            
+            // Stats
             document.getElementById('sharpe').textContent = (d.sharpe || 0).toFixed(2);
             document.getElementById('profitFactor').textContent = (d.profit_factor || 0).toFixed(2);
             document.getElementById('expectancy').textContent = '$' + (d.expectancy || 0).toFixed(2);
@@ -596,6 +692,7 @@
             document.getElementById('volatility').textContent = d.volatility || 'MEDIUM';
         }
         
+        // === UPDATE SYMBOL LIST ===
         function updateSymbolList(symbols) {
             const list = document.getElementById('symbolList');
             const keys = Object.keys(symbols);
@@ -612,7 +709,7 @@
                 
                 return `
                     <div class="symbol-item ${isActive ? 'active' : ''}" onclick="selectSymbol('${sym}')">
-                        <span>${sym}</span>
+                        <span style="font-weight: bold;">${sym}</span>
                         <span style="color: ${changeColor}; font-weight: bold;">
                             $${(d.bid || 0).toFixed(2)}
                         </span>
@@ -621,12 +718,15 @@
             }).join('');
         }
         
+        // === SELECT SYMBOL ===
         function selectSymbol(symbol) {
             currentSymbol = symbol;
             console.log('Selected symbol:', symbol);
             fetchData();
+            fetchChartData(symbol);
         }
         
+        // === SET CONNECTED STATUS ===
         function setConnected() {
             if (!isConnected) {
                 isConnected = true;
@@ -636,12 +736,17 @@
             }
         }
         
+        // === SET DISCONNECTED STATUS ===
         function setDisconnected() {
             isConnected = false;
-            document.getElementById('connectionStatus').textContent = 'DISCONNECTED';
+            document.getElementById('connectionStatus').textContent = 'WAITING';
             document.getElementById('connectionBox').className = 'status-item disconnected';
             document.getElementById('statusDot').className = 'dot red';
         }
+        
+        // === MAKE FUNCTIONS GLOBALLY AVAILABLE ===
+        window.refreshChart = refreshChart;
+        window.selectSymbol = selectSymbol;
     </script>
 </body>
 </html>
