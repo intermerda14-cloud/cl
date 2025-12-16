@@ -4,82 +4,188 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BB Scalper V4.2 Dashboard</title>
-    <!-- TradingView Lightweight Charts - LOAD ASYNC -->
-    <script>
-        // Show immediate loading screen
-        document.addEventListener('DOMContentLoaded', function() {
-            // IMMEDIATE: Show chart is loading
-            document.getElementById('tv-chart').innerHTML = `
-                <div style="
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    height: 100%;
-                    color: #00ff88;
-                    text-align: center;
-                ">
-                    <div style="font-size: 48px; margin-bottom: 20px;">⚡</div>
-                    <h3>LOADING TRADINGVIEW CHART ENGINE</h3>
-                    <p style="color: #888; margin-top: 10px;">Please wait 2-3 seconds...</p>
-                    <div style="
-                        width: 200px;
-                        height: 4px;
-                        background: rgba(255,255,255,0.1);
-                        border-radius: 2px;
-                        margin-top: 20px;
-                        overflow: hidden;
-                    ">
-                        <div id="chartLoadingBar" style="
-                            width: 0%;
-                            height: 100%;
-                            background: linear-gradient(90deg, #00ff88, #ffd700);
-                            border-radius: 2px;
-                            transition: width 0.3s;
-                        "></div>
-                    </div>
-                </div>
-            `;
-            
-            // Animate loading bar
-            let progress = 0;
-            const bar = document.getElementById('chartLoadingBar');
-            const interval = setInterval(() => {
-                progress += 10;
-                bar.style.width = progress + '%';
-                if (progress >= 100) clearInterval(interval);
-            }, 200);
-            
-            // Load TradingView ASYNC
-            const script = document.createElement('script');
-            script.src = 'https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js';
-            script.async = true;
-            script.onload = function() {
-                console.log('✅ TradingView library loaded');
-                initializeTradingViewChart();
-                // Start data fetching IMMEDIATELY
-                initializeDashboard();
-            };
-            document.head.appendChild(script);
-            
-            // Start minimal functions immediately
-            updateServerTime();
-            setInterval(updateServerTime, 1000);
-        });
-    </script>
+    <!-- TradingView Lightweight Charts -->
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
     <style>
-        /* CSS SAMA PERSIS seperti sebelumnya */
-        /* ... */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: #0c0c14;
+            color: #e0e0ff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        .header {
+            background: linear-gradient(90deg, #0a0a12, #12121e);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #00ff88;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        .logo { 
+            font-size: 24px; 
+            font-weight: 800; 
+            background: linear-gradient(90deg, #ffd700, #ffed4e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .logo span { 
+            background: linear-gradient(90deg, #00ff88, #00cc66);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .status-bar { display: flex; gap: 20px; flex-wrap: wrap; }
+        .status-item {
+            background: rgba(255,255,255,0.05);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .status-item.connected { border-color: #00ff88; background: rgba(0,255,136,0.1); }
+        .status-item.disconnected { border-color: #ff4444; background: rgba(255,68,68,0.1); }
+        .status-item .dot { 
+            display: inline-block; 
+            width: 8px; height: 8px; 
+            border-radius: 50%; 
+            margin-right: 6px;
+        }
+        .dot.green { background: #00ff88; }
+        .dot.red { background: #ff4444; }
+        .container { 
+            display: grid; 
+            grid-template-columns: 1fr 350px; 
+            gap: 20px; 
+            padding: 20px; 
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+        .chart-section {
+            background: #0f0f18;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #1a1a2a;
+        }
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .symbol-title { font-size: 20px; font-weight: bold; }
+        .symbol-title .price { color: #00ff88; margin-left: 15px; }
+        .chart-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        select, button {
+            background: #1a1a2a;
+            color: white;
+            border: 1px solid #00ff88;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        select:hover, button:hover {
+            background: #00ff88;
+            color: #000;
+        }
+        #tv-chart {
+            width: 100%;
+            height: 600px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .waiting {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 400px;
+            text-align: center;
+        }
+        .sidebar { display: flex; flex-direction: column; gap: 15px; }
+        .card {
+            background: #0f0f18;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #1a1a2a;
+        }
+        .card-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #888;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        .equity { font-size: 36px; font-weight: bold; margin-bottom: 15px; }
+        .equity.positive { color: #00ff88; }
+        .equity.negative { color: #ff4444; }
+        .account-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #1a1a2a;
+        }
+        .account-row:last-child { border: none; }
+        .account-label { color: #888; }
+        .account-value.positive { color: #00ff88; }
+        .account-value.negative { color: #ff4444; }
+        .symbol-list { display: flex; flex-direction: column; gap: 10px; max-height: 200px; overflow-y: auto; }
+        .symbol-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: #1a1a2a;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .symbol-item.active { border: 2px solid #00ff88; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .stat-item { text-align: center; }
+        .stat-value { font-size: 24px; font-weight: bold; color: #00ff88; }
+        .stat-label { font-size: 11px; color: #888; margin-top: 5px; }
+        .tier-row { display: flex; justify-content: space-around; margin-top: 15px; }
+        .tier-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            background: #1a1a2a;
+        }
+        .tier-badge.active { background: #00ff88; color: #000; }
+        .ml-confidence { text-align: center; padding: 20px; }
+        .ml-value { font-size: 48px; font-weight: bold; }
+        .ml-value.high { color: #00ff88; }
+        .ml-value.medium { color: #ffd700; }
+        .ml-value.low { color: #ff4444; }
+        .ml-label { color: #888; margin-top: 10px; }
+        .footer { text-align: center; padding: 20px; color: #555; font-size: 12px; }
+        
+        @media (max-width: 1200px) {
+            .container { grid-template-columns: 1fr; }
+            .sidebar { display: grid; grid-template-columns: repeat(2, 1fr); }
+            #tv-chart { height: 500px; }
+        }
+        @media (max-width: 768px) {
+            .sidebar { grid-template-columns: 1fr; }
+            .header { flex-direction: column; gap: 15px; }
+            #tv-chart { height: 400px; }
+        }
     </style>
 </head>
 <body>
-    <!-- HEADER SAMA -->
     <div class="header">
         <div class="logo">📈 BB SCALPER <span>V4.2 PRO</span></div>
         <div class="status-bar">
             <div class="status-item" id="connectionBox">
                 <span class="dot" id="statusDot"></span>
-                <span id="connectionStatus">LOADING</span>
+                <span id="connectionStatus">CONNECTING</span>
             </div>
             <div class="status-item">ACTIVE: <span id="activeCount">0</span></div>
             <div class="status-item">EQUITY: <span id="headerEquity">$0</span></div>
@@ -110,146 +216,296 @@
                 </div>
             </div>
             
-            <!-- CHART CONTAINER - Loading screen will be shown here -->
-            <div id="chartContainer">
+            <div id="waitingState" class="waiting">
+                <div style="font-size: 48px; margin-bottom: 20px;">📊</div>
+                <h2>LOADING PROFESSIONAL CHART</h2>
+                <p style="color: #888; margin-top: 10px;">TradingView Lightweight Charts Engine</p>
+            </div>
+            
+            <div id="chartContainer" style="display: none;">
                 <div id="tv-chart"></div>
             </div>
         </div>
         
-        <!-- SIDEBAR SAMA -->
         <div class="sidebar">
-            <!-- ... sama seperti sebelumnya ... -->
+            <div class="card">
+                <div class="card-title">💰 ACCOUNT SUMMARY</div>
+                <div class="equity" id="equity">$0.00</div>
+                <div class="account-row">
+                    <span class="account-label">Balance</span>
+                    <span class="account-value" id="balance">$0.00</span>
+                </div>
+                <div class="account-row">
+                    <span class="account-label">Today P/L</span>
+                    <span class="account-value" id="dailyPnl">$0.00</span>
+                </div>
+                <div class="account-row">
+                    <span class="account-label">Floating P/L</span>
+                    <span class="account-value" id="floating">$0.00</span>
+                </div>
+                <div class="account-row">
+                    <span class="account-label">Commission</span>
+                    <span class="account-value" id="commission">$0.00</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">📊 ACTIVE SYMBOLS</div>
+                <div class="symbol-list" id="symbolList">
+                    <div style="color: #666; text-align: center; padding: 20px;">No active symbols</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">📈 PERFORMANCE</div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="totalTrades">0</div>
+                        <div class="stat-label">Total Trades</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="winRate">0%</div>
+                        <div class="stat-label">Win Rate</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="wins">0</div>
+                        <div class="stat-label">Wins</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="losses">0</div>
+                        <div class="stat-label">Losses</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">🎯 ADVANCED STATS</div>
+                <div class="account-row">
+                    <span class="account-label">Sharpe Ratio</span>
+                    <span class="account-value" id="sharpe">0.00</span>
+                </div>
+                <div class="account-row">
+                    <span class="account-label">Profit Factor</span>
+                    <span class="account-value" id="profitFactor">0.00</span>
+                </div>
+                <div class="account-row">
+                    <span class="account-label">Expectancy</span>
+                    <span class="account-value" id="expectancy">$0.00</span>
+                </div>
+                <div class="tier-row">
+                    <span class="tier-badge" id="tier1">T1: 0</span>
+                    <span class="tier-badge" id="tier2">T2: 0</span>
+                    <span class="tier-badge" id="tier3">T3: 0</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">🤖 ML ENGINE</div>
+                <div class="ml-confidence">
+                    <div class="ml-value" id="mlConfidence">--%</div>
+                    <div class="ml-label">Confidence Score</div>
+                </div>
+                <div class="account-row">
+                    <span class="account-label">Confluence</span>
+                    <span class="account-value" id="confluence">--</span>
+                </div>
+                <div class="account-row">
+                    <span class="account-label">Pattern</span>
+                    <span class="account-value" id="pattern">--</span>
+                </div>
+                <div class="account-row">
+                    <span class="account-label">Volatility</span>
+                    <span class="account-value" id="volatility">--</span>
+                </div>
+            </div>
         </div>
     </div>
     
     <div class="footer">
-        BB Scalper V4.2 | TradingView Lightweight Charts | Fast Loading v2
+        BB Scalper V4.2 | TradingView Lightweight Charts | Real-time Monitoring
     </div>
     
     <script>
-        // Configuration - LOAD IMMEDIATELY
+        // Configuration
         const API_BASE = '/api/';
         const REFRESH_INTERVAL = 3000;
         
-        // Global variables
+        // TradingView Chart
         let tvChart = null;
         let candleSeries = null;
+        let volumeSeries = null;
         let currentSymbol = null;
         let isConnected = false;
         
-        // ========== IMMEDIATE FUNCTIONS ==========
-        function updateServerTime() {
-            const time = new Date().toLocaleTimeString('en-US', { hour12: false });
-            if (document.getElementById('serverTime')) {
-                document.getElementById('serverTime').textContent = time;
-            }
-        }
-        
-        // ========== FAST INITIALIZATION ==========
-        function initializeDashboard() {
-            console.log('🚀 Fast dashboard initialization');
+        // Start when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 BB Scalper V4.2 - TradingView Charts');
             
-            // Update status
-            document.getElementById('connectionStatus').textContent = 'CHECKING DATA';
+            // Initialize TradingView Chart
+            initializeTradingViewChart();
+            
+            // Update time
+            updateServerTime();
+            setInterval(updateServerTime, 1000);
             
             // Setup timeframe selector
             document.getElementById('timeframeSelect').addEventListener('change', function() {
+                console.log('Timeframe changed to:', this.value);
                 if (currentSymbol) {
                     fetchChartData(currentSymbol);
                 }
             });
             
-            // IMMEDIATE data check
-            fetchData();
-            
-            // Start auto-refresh
-            setInterval(fetchData, REFRESH_INTERVAL);
+            // Start data fetching
+            setTimeout(() => {
+                fetchData();
+                setInterval(fetchData, REFRESH_INTERVAL);
+            }, 1000);
+        });
+        
+        function updateServerTime() {
+            const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+            document.getElementById('serverTime').textContent = time;
         }
         
-        // ========== TRADINGVIEW CHART - Load setelah library ready ==========
-        function initializeTradingViewChart() {
-            try {
-                const chartContainer = document.getElementById('tv-chart');
-                
-                // Clear loading screen
-                chartContainer.innerHTML = '';
-                
-                tvChart = LightweightCharts.createChart(chartContainer, {
-                    width: chartContainer.clientWidth,
-                    height: chartContainer.clientHeight,
-                    layout: { backgroundColor: '#0c0c14', textColor: '#e0e0ff' },
-                    grid: { vertLines: { color: '#1a1a2a' }, horzLines: { color: '#1a1a2a' } },
-                    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-                    rightPriceScale: { borderColor: '#1a1a2a' },
-                    timeScale: { borderColor: '#1a1a2a', timeVisible: true },
-                });
-                
-                candleSeries = tvChart.addCandlestickSeries({
-                    upColor: '#00ff88',
-                    downColor: '#ff4444',
-                    borderUpColor: '#00cc66',
-                    borderDownColor: '#cc0000',
-                    wickUpColor: '#00cc66',
-                    wickDownColor: '#cc0000',
-                });
-                
-                // Resize handler
-                window.addEventListener('resize', () => {
-                    tvChart.applyOptions({
-                        width: chartContainer.clientWidth,
-                        height: chartContainer.clientHeight,
-                    });
-                });
-                
-                console.log('✅ TradingView Chart READY');
-                
-            } catch (error) {
-                console.error('❌ Chart init error:', error);
+        function refreshChart() {
+            if (currentSymbol) {
+                console.log('Refreshing chart for:', currentSymbol);
+                fetchChartData(currentSymbol);
             }
         }
         
-        // ========== UPDATE CHART ==========
-        function updateTradingViewChart(candlestickData, symbol) {
-            if (!candleSeries || !candlestickData || candlestickData.length === 0) return;
+        // ========== TRADINGVIEW CHART INITIALIZATION ==========
+        function initializeTradingViewChart() {
+            const chartContainer = document.getElementById('tv-chart');
             
+            // Create chart
+            tvChart = LightweightCharts.createChart(chartContainer, {
+                width: chartContainer.clientWidth,
+                height: chartContainer.clientHeight,
+                layout: {
+                    backgroundColor: '#0c0c14',
+                    textColor: '#e0e0ff',
+                },
+                grid: {
+                    vertLines: { color: '#1a1a2a' },
+                    horzLines: { color: '#1a1a2a' },
+                },
+                crosshair: {
+                    mode: LightweightCharts.CrosshairMode.Normal,
+                },
+                rightPriceScale: {
+                    borderColor: '#1a1a2a',
+                    scaleMargins: {
+                        top: 0.1,
+                        bottom: 0.1,
+                    },
+                },
+                timeScale: {
+                    borderColor: '#1a1a2a',
+                    timeVisible: true,
+                    secondsVisible: false,
+                },
+                watermark: {
+                    visible: true,
+                    fontSize: 24,
+                    horzAlign: 'center',
+                    vertAlign: 'center',
+                    color: 'rgba(255, 255, 255, 0.04)',
+                    text: 'BB SCALPER V4.2',
+                },
+            });
+            
+            // Create candlestick series
+            candleSeries = tvChart.addCandlestickSeries({
+                upColor: '#00ff88',
+                downColor: '#ff4444',
+                borderUpColor: '#00cc66',
+                borderDownColor: '#cc0000',
+                wickUpColor: '#00cc66',
+                wickDownColor: '#cc0000',
+            });
+            
+            // Create volume series (optional)
+            volumeSeries = tvChart.addHistogramSeries({
+                color: '#26a69a',
+                priceFormat: {
+                    type: 'volume',
+                },
+                priceScaleId: '',
+                scaleMargins: {
+                    top: 0.8,
+                    bottom: 0,
+                },
+            });
+            
+            // Handle resize
+            window.addEventListener('resize', () => {
+                tvChart.applyOptions({
+                    width: chartContainer.clientWidth,
+                    height: chartContainer.clientHeight,
+                });
+            });
+            
+            console.log('✅ TradingView Chart initialized');
+        }
+        
+        // ========== UPDATE TRADINGVIEW CHART ==========
+        function updateTradingViewChart(candlestickData, symbol) {
+            if (!candleSeries || !candlestickData || candlestickData.length === 0) {
+                console.log('No chart data to display');
+                return;
+            }
+            
+            // Convert to TradingView format
             const tvData = candlestickData.map(candle => ({
-                time: Math.floor(candle.t),
+                time: Math.floor(candle.t), // Unix timestamp in seconds
                 open: candle.o,
                 high: candle.h,
                 low: candle.l,
                 close: candle.c,
             }));
             
+            // Update chart
             candleSeries.setData(tvData);
+            
+            // Auto-fit time scale
             tvChart.timeScale().fitContent();
             
-            console.log(`📈 Chart updated: ${tvData.length} candles`);
+            console.log(`📈 TradingView chart updated: ${tvData.length} candles`);
         }
         
-        // ========== DATA FETCHING ==========
+        // ========== MAIN DATA FETCH ==========
         async function fetchData() {
             try {
-                console.log('🔄 Checking data...');
                 const response = await fetch(API_BASE + 'data');
                 const data = await response.json();
                 
-                if (data.status === 'ok' && data.active_count > 0) {
-                    updateDashboard(data);
-                    setConnected();
-                    
-                    if (currentSymbol) {
-                        fetchChartData(currentSymbol);
+                if (data.status === 'ok') {
+                    if (data.active_count > 0) {
+                        // Show chart container
+                        document.getElementById('waitingState').style.display = 'none';
+                        document.getElementById('chartContainer').style.display = 'block';
+                        
+                        updateDashboard(data);
+                        setConnected();
+                        
+                        // Fetch chart data
+                        if (currentSymbol) {
+                            fetchChartData(currentSymbol);
+                        }
+                    } else {
+                        setDisconnected();
                     }
-                } else {
-                    setDisconnected();
                 }
                 
             } catch (error) {
-                console.error('Fetch error:', error);
+                console.error('Error:', error);
                 setDisconnected();
             }
         }
         
+        // ========== CHART DATA FETCH ==========
         async function fetchChartData(symbol) {
             if (!symbol) return;
             
@@ -257,65 +513,118 @@
                 const response = await fetch(`${API_BASE}chart?symbol=${symbol}`);
                 const data = await response.json();
                 
-                if (data.status === 'ok' && data.data) {
+                if (data.status === 'ok' && data.data && data.data.length > 0) {
                     updateTradingViewChart(data.data, symbol);
                 }
                 
             } catch (error) {
-                console.error('Chart error:', error);
+                console.error('Chart fetch error:', error);
             }
         }
         
-        // ========== DASHBOARD UPDATE ==========
+        // ========== DASHBOARD FUNCTIONS ==========
         function updateDashboard(data) {
             const symbols = data.symbols || {};
             const symbolKeys = Object.keys(symbols);
+            const activeCount = symbolKeys.length;
             
-            document.getElementById('activeCount').textContent = symbolKeys.length;
+            document.getElementById('activeCount').textContent = activeCount;
             
-            if (symbolKeys.length > 0) {
+            if (activeCount > 0) {
+                // Select first symbol if none selected
                 if (!currentSymbol || !symbols[currentSymbol]) {
                     currentSymbol = symbolKeys[0];
                 }
                 
+                // Update symbol data
                 if (currentSymbol && symbols[currentSymbol]) {
                     updateSymbolData(symbols[currentSymbol]);
                 }
                 
+                // Update symbol list
                 updateSymbolList(symbols);
             }
         }
         
         function updateSymbolData(d) {
-            // Update UI fields
+            // Basic info
             document.getElementById('chartSymbol').textContent = d.symbol || '--';
             document.getElementById('chartPrice').textContent = '$' + (d.bid || 0).toFixed(2);
-            // ... (sama seperti sebelumnya)
+            document.getElementById('chartSpread').textContent = 'Spread: ' + (d.spread || 0).toFixed(1);
+            document.getElementById('chartVol').textContent = 'Vol: ' + (d.volatility || 'MEDIUM');
+            
+            // Account info
+            const equity = parseFloat(d.equity) || 0;
+            const dailyPnl = parseFloat(d.daily_pnl) || 0;
+            const floating = parseFloat(d.floating) || 0;
+            
+            document.getElementById('equity').textContent = '$' + equity.toFixed(2);
+            document.getElementById('equity').className = 'equity ' + (dailyPnl >= 0 ? 'positive' : 'negative');
+            document.getElementById('headerEquity').textContent = '$' + equity.toFixed(0);
+            document.getElementById('balance').textContent = '$' + (parseFloat(d.balance) || 0).toFixed(2);
+            
+            // P/L
+            const pnlEl = document.getElementById('dailyPnl');
+            pnlEl.textContent = (dailyPnl >= 0 ? '+' : '') + '$' + dailyPnl.toFixed(2);
+            pnlEl.className = 'account-value ' + (dailyPnl >= 0 ? 'positive' : 'negative');
+            
+            const floatEl = document.getElementById('floating');
+            floatEl.textContent = (floating >= 0 ? '+' : '') + '$' + floating.toFixed(2);
+            floatEl.className = 'account-value ' + (floating >= 0 ? 'positive' : 'negative');
+            
+            // Other fields
+            document.getElementById('commission').textContent = '$' + (parseFloat(d.commission) || 0).toFixed(2);
+            document.getElementById('totalTrades').textContent = d.total_trades || 0;
+            document.getElementById('winRate').textContent = (d.win_rate || 0).toFixed(1) + '%';
+            document.getElementById('wins').textContent = d.wins || 0;
+            document.getElementById('losses').textContent = d.losses || 0;
+            document.getElementById('sharpe').textContent = (d.sharpe || 0).toFixed(2);
+            document.getElementById('profitFactor').textContent = (d.profit_factor || 0).toFixed(2);
+            document.getElementById('expectancy').textContent = '$' + (d.expectancy || 0).toFixed(2);
+            document.getElementById('tier1').textContent = 'T1: ' + (d.tier1 || 0);
+            document.getElementById('tier2').textContent = 'T2: ' + (d.tier2 || 0);
+            document.getElementById('tier3').textContent = 'T3: ' + (d.tier3 || 0);
+            
+            // ML Engine
+            const mlConf = parseFloat(d.ml_confidence) || 0;
+            const mlEl = document.getElementById('mlConfidence');
+            mlEl.textContent = mlConf.toFixed(0) + '%';
+            mlEl.className = 'ml-value ' + (mlConf >= 70 ? 'high' : mlConf >= 50 ? 'medium' : 'low');
+            
+            document.getElementById('confluence').textContent = d.confluence || '0';
+            document.getElementById('pattern').textContent = d.pattern || 'NONE';
+            document.getElementById('volatility').textContent = d.volatility || 'MEDIUM';
         }
         
         function updateSymbolList(symbols) {
             const list = document.getElementById('symbolList');
             const keys = Object.keys(symbols);
             
-            if (keys.length === 0) return;
+            if (keys.length === 0) {
+                list.innerHTML = '<div style="color: #666; text-align: center; padding: 20px;">No active symbols</div>';
+                return;
+            }
             
-            list.innerHTML = keys.map(sym => `
-                <div class="symbol-item ${sym === currentSymbol ? 'active' : ''}" onclick="selectSymbol('${sym}')">
-                    <span>${sym}</span>
-                    <span style="color: #00ff88; font-weight: bold;">
-                        $${(symbols[sym].bid || 0).toFixed(2)}
-                    </span>
-                </div>
-            `).join('');
+            list.innerHTML = keys.map(sym => {
+                const d = symbols[sym];
+                const isActive = sym === currentSymbol;
+                const changeColor = (d.daily_pnl || 0) >= 0 ? '#00ff88' : '#ff4444';
+                
+                return `
+                    <div class="symbol-item ${isActive ? 'active' : ''}" onclick="selectSymbol('${sym}')">
+                        <span>${sym}</span>
+                        <span style="color: ${changeColor}; font-weight: bold;">
+                            $${(d.bid || 0).toFixed(2)}
+                        </span>
+                    </div>
+                `;
+            }).join('');
         }
         
         function selectSymbol(symbol) {
             currentSymbol = symbol;
+            console.log('Selected symbol:', symbol);
             fetchData();
-        }
-        
-        function refreshChart() {
-            if (currentSymbol) fetchChartData(currentSymbol);
         }
         
         function setConnected() {
@@ -329,7 +638,7 @@
         
         function setDisconnected() {
             isConnected = false;
-            document.getElementById('connectionStatus').textContent = 'WAITING';
+            document.getElementById('connectionStatus').textContent = 'DISCONNECTED';
             document.getElementById('connectionBox').className = 'status-item disconnected';
             document.getElementById('statusDot').className = 'dot red';
         }
