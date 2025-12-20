@@ -4,7 +4,9 @@
   "description": "BB Scalper V4.3 Professional Trading Dashboard",
   "main": "api/index.js",
   "scripts": {
-    "build": "exit 0"
+    "dev": "node api/index.js",
+    "build": "",
+    "start": "node api/index.js"
   },
   "dependencies": {
     "mongodb": "^6.3.0"
