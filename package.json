@@ -4,8 +4,6 @@
   "description": "BB Scalper V4.3 Professional Trading Dashboard",
   "main": "api/index.js",
   "scripts": {
-    "dev": "node api/index.js",
-    "build": "echo 'No build required for Node.js API'",
     "start": "node api/index.js"
   },
   "dependencies": {
