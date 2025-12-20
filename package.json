@@ -1,0 +1,8 @@
+{
+  "name": "bb-scalper-dashboard",
+  "version": "4.3.0",
+  "description": "BB Scalper V4.3 Professional Trading Dashboard",
+  "dependencies": {
+    "mongodb": "^6.3.0"
+  }
+}
