@@ -1,0 +1,209 @@
+        
+        function drawEmptyChart() {
+            const width = canvas.width / (window.devicePixelRatio || 1);
+            const height = canvas.height / (window.devicePixelRatio || 1);
+            ctx.fillStyle = COLORS.bg;
+            ctx.fillRect(0, 0, width, height);
+            ctx.fillStyle = COLORS.text;
+            ctx.font = '14px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Waiting for chart data from EA...', width / 2, height / 2);
+            document.getElementById('chartOverlay').classList.remove('hidden');
+        }
+        
+        function updateOHLC(candle) {
+            if (!candle) return;
+            document.getElementById('ohlcOpen').textContent = formatPrice(candle.o);
+            document.getElementById('ohlcHigh').textContent = formatPrice(candle.h);
+            document.getElementById('ohlcLow').textContent = formatPrice(candle.l);
+            document.getElementById('ohlcClose').textContent = formatPrice(candle.c);
+        }
+        
+        function updateDashboard(data) {
+            const symbols = data.symbols || {};
+            const symbolKeys = Object.keys(symbols);
+            document.getElementById('activeCount').textContent = symbolKeys.length;
+            
+            if (symbolKeys.length > 0) {
+                if (!currentSymbol || !symbols[currentSymbol]) currentSymbol = symbolKeys[0];
+                if (currentSymbol && symbols[currentSymbol]) updateSymbolData(symbols[currentSymbol]);
+                renderSymbolList(symbols);
+                fetchChartData(currentSymbol);
+                fetchPositions();
+            }
+        }
+        
+        function updateSymbolData(d) {
+            document.getElementById('chartSymbol').textContent = d.symbol || '--';
+            symbolDigits = d.digits || 2;
+            brokerName = d.broker || '';
+            document.getElementById('brokerInfo').textContent = `Broker: ${brokerName || '--'} | Digits: ${symbolDigits}`;
+            
+            const price = parseFloat(d.bid) || 0;
+            const priceEl = document.getElementById('currentPrice');
+            priceEl.textContent = formatPrice(price);
+            priceEl.className = 'current-price ' + ((d.daily_pnl || 0) >= 0 ? 'up' : 'down');
+            document.getElementById('priceChange').textContent = `Spread: ${(d.spread || 0).toFixed(1)} | Vol: ${d.volatility || 'MEDIUM'}`;
+            
+            const equity = parseFloat(d.equity) || 0;
+            const dailyPnl = parseFloat(d.daily_pnl) || 0;
+            const floating = parseFloat(d.floating) || 0;
+            
+            const equityEl = document.getElementById('equity');
+            equityEl.textContent = '$' + equity.toFixed(2);
+            equityEl.className = 'equity-value ' + (dailyPnl >= 0 ? 'positive' : 'negative');
+            
+            document.getElementById('headerEquity').textContent = '$' + equity.toFixed(0);
+            document.getElementById('headerEquity').style.color = dailyPnl >= 0 ? 'var(--profit)' : 'var(--loss)';
+            document.getElementById('balance').textContent = '$' + (parseFloat(d.balance) || 0).toFixed(2);
+            
+            const pnlEl = document.getElementById('dailyPnl');
+            pnlEl.textContent = (dailyPnl >= 0 ? '+' : '') + '$' + dailyPnl.toFixed(2);
+            pnlEl.className = 'account-value ' + (dailyPnl >= 0 ? 'positive' : 'negative');
+            
+            const floatEl = document.getElementById('floating');
+            floatEl.textContent = (floating >= 0 ? '+' : '') + '$' + floating.toFixed(2);
+            floatEl.className = 'account-value ' + (floating >= 0 ? 'positive' : 'negative');
+            
+            document.getElementById('commission').textContent = '$' + (parseFloat(d.commission) || 0).toFixed(2);
+            document.getElementById('totalTrades').textContent = d.total_trades || 0;
+            document.getElementById('winRate').textContent = (d.win_rate || 0).toFixed(1) + '%';
+            document.getElementById('wins').textContent = d.wins || 0;
+            document.getElementById('losses').textContent = d.losses || 0;
+            document.getElementById('sharpe').textContent = (d.sharpe || 0).toFixed(2);
+            document.getElementById('profitFactor').textContent = (d.profit_factor || 0).toFixed(2);
+            document.getElementById('expectancy').textContent = '$' + (d.expectancy || 0).toFixed(2);
+            document.getElementById('tier1').textContent = 'T1: ' + (d.tier1 || 0);
+            document.getElementById('tier2').textContent = 'T2: ' + (d.tier2 || 0);
+            document.getElementById('tier3').textContent = 'T3: ' + (d.tier3 || 0);
+            
+            const mlConf = parseFloat(d.ml_confidence) || 0;
+            const mlEl = document.getElementById('mlConfidence');
+            mlEl.textContent = mlConf.toFixed(0) + '%';
+            mlEl.className = 'gauge-value ' + (mlConf >= 70 ? 'high' : mlConf >= 50 ? 'medium' : 'low');
+            document.getElementById('mlGauge').style.setProperty('--percent', mlConf);
+            
+            document.getElementById('confluence').textContent = d.confluence || '0';
+            document.getElementById('pattern').textContent = d.pattern || 'NONE';
+            document.getElementById('volatility').textContent = d.volatility || 'MEDIUM';
+        }
+        
+        function renderSymbolList(symbols) {
+            const list = document.getElementById('symbolList');
+            const keys = Object.keys(symbols);
+            if (keys.length === 0) {
+                list.innerHTML = '<div class="no-positions">No active symbols</div>';
+                return;
+            }
+            list.innerHTML = keys.map(sym => {
+                const d = symbols[sym];
+                const isActive = sym === currentSymbol;
+                const priceColor = (d.daily_pnl || 0) >= 0 ? 'var(--profit)' : 'var(--loss)';
+                return `<div class="symbol-item ${isActive ? 'active' : ''}" onclick="selectSymbol('${sym}')">
+                    <span class="symbol-item-name">${sym}</span>
+                    <span class="symbol-item-price" style="color: ${priceColor}">${formatPrice(d.bid || 0)}</span>
+                </div>`;
+            }).join('');
+        }
+        
+        function renderPositions(positions) {
+            const list = document.getElementById('positionsList');
+            const count = positions.length;
+            document.getElementById('positionsCount').textContent = count;
+            
+            if (count === 0) {
+                list.innerHTML = '<div class="no-positions">No open positions</div>';
+                return;
+            }
+            
+            list.innerHTML = positions.map(pos => {
+                const isBuy = pos.type === 'BUY' || pos.type === 0;
+                const pnl = parseFloat(pos.profit) || 0;
+                return `<div class="position-item">
+                    <span class="position-type ${isBuy ? 'buy' : 'sell'}">${isBuy ? 'BUY' : 'SELL'}</span>
+                    <div class="position-info">
+                        <span class="position-symbol">${pos.symbol}</span>
+                        <span class="position-details">@ ${formatPrice(pos.open_price)} | SL: ${formatPrice(pos.sl)} | TP: ${formatPrice(pos.tp)}</span>
+                    </div>
+                    <span class="position-lot">${(pos.lots || pos.volume || 0).toFixed(2)} lot</span>
+                    <span class="position-pnl ${pnl >= 0 ? 'positive' : 'negative'}">${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}</span>
+                    <button class="close-btn" onclick="closeTrade(${pos.ticket})" title="Close Position">✕</button>
+                </div>`;
+            }).join('');
+        }
+        
+        async function closeTrade(ticket) {
+            if (!confirm(`Close position #${ticket}?`)) return;
+            try {
+                const res = await fetch(`${API_BASE}/close_trade`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ticket: ticket })
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    showToast('Position closed successfully', 'success');
+                    fetchPositions();
+                } else {
+                    showToast('Failed: ' + (data.message || 'Unknown error'), 'error');
+                }
+            } catch (err) {
+                showToast('Error closing position', 'error');
+            }
+        }
+        
+        async function closeAllTrades() {
+            if (!confirm('Close ALL open positions?')) return;
+            try {
+                const res = await fetch(`${API_BASE}/close_all`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    showToast('All positions closed', 'success');
+                    fetchPositions();
+                } else {
+                    showToast('Failed: ' + (data.message || 'Unknown error'), 'error');
+                }
+            } catch (err) {
+                showToast('Error closing positions', 'error');
+            }
+        }
+        
+        function formatPrice(price) { return parseFloat(price).toFixed(symbolDigits); }
+        function selectSymbol(symbol) { currentSymbol = symbol; fetchData(); fetchChartData(symbol); }
+        function refreshChart() { fetchChartData(currentSymbol); }
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('serverTime').textContent = now.toLocaleTimeString('en-US', { hour12: false });
+        }
+        function setConnected(connected) {
+            isConnected = connected;
+            const box = document.getElementById('connectionBox');
+            const pulse = document.getElementById('statusPulse');
+            const status = document.getElementById('connectionStatus');
+            if (connected) {
+                box.className = 'status-item connected';
+                pulse.className = 'pulse green';
+                status.textContent = 'CONNECTED';
+            } else {
+                box.className = 'status-item disconnected';
+                pulse.className = 'pulse red';
+                status.textContent = 'WAITING';
+            }
+        }
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast show ' + type;
+            setTimeout(() => { toast.className = 'toast'; }, 3000);
+        }
+        
+        window.selectSymbol = selectSymbol;
+        window.refreshChart = refreshChart;
+        window.closeTrade = closeTrade;
+        window.closeAllTrades = closeAllTrades;
+    </script>
+</body>
+</html>
